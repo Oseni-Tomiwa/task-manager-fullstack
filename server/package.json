@@ -1,0 +1,40 @@
+{
+  "name": "@taskflow/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=24.10.0"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --import tsx --watch src/index.ts",
+    "start": "node --env-file-if-exists=.env dist/index.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "zod": "^4.0.0",
+    "helmet": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/supertest": "^6.0.0",
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.0.0",
+    "globals": "^17.0.0",
+    "typescript-eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "~5.9.0",
+    "tsx": "^4.0.0",
+    "supertest": "^7.0.0",
+    "vitest": "^4.0.0"
+  }
+}

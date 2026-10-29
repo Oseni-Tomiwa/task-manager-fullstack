@@ -2,7 +2,7 @@
 
 A proposed full-stack task manager for the AppRo8 Full Stack Developer Internship (Weeks 3–4).
 
-**Status: Phase 2 mock-data prototype built; desktop design approved; final responsive refinements verified. Production frontend and backend are not implemented.**
+**Status: Phase 2 mock-data prototype built; desktop design approved; final responsive refinements verified. Production backend foundation is implemented in Phase 3.1; authentication, database access, task endpoints and the production frontend remain unimplemented.**
 
 Repository: [Oseni-Tomiwa/task-manager-fullstack](https://github.com/Oseni-Tomiwa/task-manager-fullstack).
 Internal target: November 9, 2026. Official deadline: November 12, 2026.
@@ -24,17 +24,18 @@ Browser → React client → Express API → MongoDB Atlas. The API authenticate
 - [Cookie authentication recommendation](docs/authentication-decision.md)
 - [Phase 2 verification](docs/phase-2-verification.md)
 - [Final prototype review](docs/final-prototype-review.md)
-- [Manual Git handoff](docs/git-handoff/README.md)
+- [Manual prototype Git handoff (historical)](docs/git-handoff/README.md)
+- [Phase 3.1 backend foundation](docs/phase-3.1-backend.md)
 
 ## Proposed repository structure
 
 ```text
 task-manager-fullstack/
 ├── client/                  # Future production frontend
-├── server/                  # Future production API
-├── prototype/               # Future isolated mock-data prototype
+├── server/                  # Production backend foundation
+├── prototype/               # Approved isolated mock-data prototype
 ├── docs/
-├── .gitignore               # Future tooling phase
+├── .gitignore               # Environment and generated-file exclusions
 ├── pnpm-workspace.yaml      # Future tooling phase
 ├── pnpm-lock.yaml           # Future tooling phase
 ├── package.json             # Future tooling phase
@@ -42,7 +43,7 @@ task-manager-fullstack/
 └── LICENSE
 ```
 
-The standalone `prototype/` app and planning documents exist. Production directories and root workspace configuration remain uncreated.
+The isolated `prototype/` and production backend foundation in `server/` exist. Each has its own pnpm manifest and lockfile. Root workspace setup is deferred until the production client is added, preserving prototype isolation.
 
 ## Installation, local development and testing
 
@@ -65,9 +66,9 @@ pnpm build
 
 Use **Prototype playground** on the dashboard to review loading, empty, load-error and mutation-failure states. See [Phase 2 verification](docs/phase-2-verification.md) for actual evidence and limitations. The prototype makes no API/database requests and requires no environment variables.
 
-Planned server environment variables: `PORT`, `NODE_ENV`, `MONGODB_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`. Planned client variable: `VITE_API_BASE_URL`, which is public and must never contain secrets. Future `.env.example` files will contain placeholders only; real environment files will be ignored.
+Current server variables: `PORT`, `HOST`, `NODE_ENV`. `MONGODB_URI`, `JWT_SECRET` and `CLIENT_ORIGIN` belong to later milestones and are not required or read yet. Planned client variable: `VITE_API_BASE_URL`, which is public and must never contain secrets. Future `.env.example` files will contain placeholders only; real environment files will be ignored.
 
-Planned checks: lint, formatting, TypeScript checks, client/server builds, API integration tests and frontend interaction tests. No production tests exist or have run. Prototype static/build checks and browser walkthroughs are documented separately. See the acceptance matrix in the Phase 1 plan.
+Planned checks: lint, formatting, TypeScript checks, client/server builds, API integration tests and frontend interaction tests. Foundation HTTP and environment tests now exist in `server/`; see the Phase 3.1 report for executed results. Prototype static/build checks and browser walkthroughs are documented separately. See the acceptance matrix in the Phase 1 plan.
 
 ## API overview
 
@@ -88,3 +89,16 @@ After implementation and explicit deployment approval: configure Vercel client r
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Production backend foundation
+
+See [server/README.md](server/README.md) for setup, environment validation, scripts, health/errors and shutdown behavior. From the repository root:
+
+```bash
+cd server
+pnpm install --frozen-lockfile
+cp .env.example .env
+pnpm dev
+```
+
+`GET /api/health` returns HTTP 200 with `{"status":"ok"}`. This milestone adds no authentication, database connection or task API. No deployment has occurred.
