@@ -2,7 +2,7 @@
 
 A proposed full-stack task manager for the AppRo8 Full Stack Developer Internship (Weeks 3–4).
 
-**Status: Phase 2 mock-data prototype built; desktop design approved; final responsive refinements verified. Production backend foundation is implemented in Phase 3.1; authentication, database access, task endpoints and the production frontend remain unimplemented.**
+**Status: Phase 2 mock-data prototype built; desktop design approved; final responsive refinements verified. Production backend includes the Phase 3.2 MongoDB connection lifecycle and User model; authentication, task endpoints and the production frontend remain unimplemented.**
 
 Repository: [Oseni-Tomiwa/task-manager-fullstack](https://github.com/Oseni-Tomiwa/task-manager-fullstack).
 Internal target: November 9, 2026. Official deadline: November 12, 2026.
@@ -26,6 +26,7 @@ Browser → React client → Express API → MongoDB Atlas. The API authenticate
 - [Final prototype review](docs/final-prototype-review.md)
 - [Manual prototype Git handoff (historical)](docs/git-handoff/README.md)
 - [Phase 3.1 backend foundation](docs/phase-3.1-backend.md)
+- [Phase 3.2 MongoDB foundation](docs/phase-3.2-database.md)
 
 ## Proposed repository structure
 
@@ -66,7 +67,7 @@ pnpm build
 
 Use **Prototype playground** on the dashboard to review loading, empty, load-error and mutation-failure states. See [Phase 2 verification](docs/phase-2-verification.md) for actual evidence and limitations. The prototype makes no API/database requests and requires no environment variables.
 
-Current server variables: `PORT`, `HOST`, `NODE_ENV`. `MONGODB_URI`, `JWT_SECRET` and `CLIENT_ORIGIN` belong to later milestones and are not required or read yet. Planned client variable: `VITE_API_BASE_URL`, which is public and must never contain secrets. Future `.env.example` files will contain placeholders only; real environment files will be ignored.
+Current server variables: `PORT`, `HOST`, `NODE_ENV` and `MONGODB_URI` (required for startup). `JWT_SECRET` and `CLIENT_ORIGIN` belong to later milestones and are not required or read yet. Planned client variable: `VITE_API_BASE_URL`, which is public and must never contain secrets. Future `.env.example` files will contain placeholders only; real environment files will be ignored.
 
 Planned checks: lint, formatting, TypeScript checks, client/server builds, API integration tests and frontend interaction tests. Foundation HTTP and environment tests now exist in `server/`; see the Phase 3.1 report for executed results. Prototype static/build checks and browser walkthroughs are documented separately. See the acceptance matrix in the Phase 1 plan.
 
@@ -98,7 +99,8 @@ See [server/README.md](server/README.md) for setup, environment validation, scri
 cd server
 pnpm install --frozen-lockfile
 cp .env.example .env
+# Start local MongoDB or configure an authorized development MONGODB_URI.
 pnpm dev
 ```
 
-`GET /api/health` returns HTTP 200 with `{"status":"ok"}`. This milestone adds no authentication, database connection or task API. No deployment has occurred.
+`GET /api/health` returns HTTP 200 with `{"status":"ok"}`. Startup now requires an authorized local/development MongoDB URI and connects before listening; health remains process liveness. A typed User model defines validation and the unique email index. No authentication, task API or deployment has been added.

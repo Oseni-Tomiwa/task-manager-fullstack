@@ -1,6 +1,20 @@
 import { z } from "zod";
+import mongoose from "mongoose";
 
 const schema = z.object({
+  MONGODB_URI: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((value) => {
+      try {
+        new mongoose.mongo.MongoClient(value);
+        return true;
+      } catch {
+        return false;
+      }
+    })
+    .optional(),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -24,3 +38,11 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   }
   return result.data;
 }
+
+export function parseStartupEnv(source: Record<string, string | undefined>) {
+  const env = parseEnv(source);
+  if (!env.MONGODB_URI)
+    throw new Error("Invalid environment configuration: MONGODB_URI");
+  return { ...env, MONGODB_URI: env.MONGODB_URI };
+}
+export type StartupEnv = ReturnType<typeof parseStartupEnv>;
