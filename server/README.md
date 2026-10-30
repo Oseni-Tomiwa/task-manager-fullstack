@@ -1,6 +1,6 @@
-# TaskFlow server — Phase 3.3
+# TaskFlow server — Phase 3.4
 
-Express/TypeScript backend with MongoDB lifecycle, a typed User model and cookie-based JWT authentication. Task business logic remains unimplemented.
+Express/TypeScript backend with MongoDB lifecycle, a typed User model and cookie-based JWT authentication. Authenticated owner-scoped task CRUD, search, status filters and pagination are implemented.
 
 ## Run locally
 
@@ -63,7 +63,7 @@ Error envelope: `{error:{code,message}}`. Unknown routes return 404 NOT_FOUND; m
 
 A later Vercel client will call relative `/api` paths, proxied to Render while keeping browser requests same-origin. See ../docs/authentication-decision.md for the proposed HttpOnly/Secure/SameSite cookie JWT strategy, exact Origin and custom-header CSRF controls, expiration/logout behavior and required deployment checks. Cookie authentication, exact-Origin/custom-header CSRF controls and auth routes are now implemented. The same-origin proxy and hosting configuration remain unimplemented and unverified. No permissive CORS middleware is enabled. Do not treat the absence of CORS as authentication or access control. Client integration and mutation-route security must be added in their authorized milestones.
 
-No repository/service layers, refresh-token infrastructure, task models/endpoints, deployment manifests or production frontend were added. The approved prototype is independent and unchanged.
+No repository/service layers, refresh-token infrastructure, deployment manifests or production frontend were added. The approved prototype is independent and unchanged.
 
 ## Database use and limitations
 
@@ -88,6 +88,24 @@ All POSTs require exact Origin=CLIENT_ORIGIN, X-TaskFlow-Request: 1 and Content-
 
 JWT_SECRET must be 64 hexadecimal characters generated privately using openssl rand -hex 32. The .env.example placeholder is intentionally invalid. CLIENT_ORIGIN is one exact HTTP loopback origin for development or an HTTPS origin; production requires HTTPS. No trailing slash, path, credentials or wildcard. NODE_ENV=production enables the Secure, host-only __Host-taskflow cookie; local development uses taskflow_session without Secure. Both use HttpOnly, SameSite=Lax, Path=/ and a 30-minute lifetime.
 
-createApp(authConfig) mounts auth routes. createApp() without auth config remains a health/test-only factory; the production entry point always validates auth config and passes it before any database connection, so missing settings cannot silently disable production authentication. requireAuth() resolves a safe public user to req.user for future protected handlers; database outages return a generic 500 rather than pretending the session is invalid.
+createApp(authConfig) mounts auth routes. createApp() without auth config remains a health/test-only factory; the production entry point always validates auth config and passes it before any database connection, so missing settings cannot silently disable production authentication. requireAuth() resolves a safe public user to req.user for protected handlers; database outages return a generic 500 rather than pretending the session is invalid.
 
 Logout clears the browser cookie but does not revoke a copied JWT before expiry. No refresh tokens, persistent browser token storage, session blacklist, OAuth or password-reset infrastructure is present. Supertest tests use real bcrypt/JWT operations with mocked database methods; no real browser/proxy or Atlas integration has been verified.
+
+## Task API
+
+See [Phase 3.4 task API](../docs/phase-3.4-task-api.md) for examples, responses, validation and verification evidence. All /api/tasks routes require the existing session cookie; POST/PATCH/DELETE additionally require the exact Origin, X-TaskFlow-Request: 1 and application/json. Send {} on DELETE. All task responses are no-store.
+
+- POST /api/tasks → 201 {data:{task}}.
+- GET /api/tasks → 200 {data:{tasks},meta:{page,limit,total,totalPages}}.
+- GET /api/tasks/:id → 200 {data:{task}}.
+- PATCH /api/tasks/:id → 200 {data:{task}}.
+- DELETE /api/tasks/:id → 204 empty body.
+
+Production status values are exactly todo, in_progress and completed, with todo as default. PATCH {status:"completed"} completes a task; PATCH {status:"todo"} marks it incomplete. The approved prototype remains unchanged: its pending maps to todo and in-progress maps to in_progress when the production frontend is built. No production alias or data migration is needed for isolated mock data.
+
+Title is required, trimmed and 1–120 characters. Description is trimmed, at most 2000 characters and defaults to empty. Owner is a required immutable User reference assigned only from req.user.id; no populated user data or owner field is returned. Timestamps are maintained by Mongoose. A compound owner/createdAt/_id index supports owned-list queries. Unknown fields, client-supplied owner/IDs/timestamps/operators and empty PATCH bodies are rejected. Updates use an explicit $set and runValidators with returnDocument:after.
+
+List query: q (literal case-insensitive title substring, max 120), optional status, page (1–10000, default 1), limit (1–100, default 20). Unknown/repeated/operator-shaped query parameters are rejected. Sorting is createdAt descending then _id descending. Empty results use totalPages=0; an out-of-range page stays empty rather than silently changing page. Counts and lists are separate queries and may drift under concurrent writes. There is no search service, summary endpoint or transaction snapshot.
+
+Every task query includes the authenticated owner, including counts, updates and deletes. A malformed ObjectId returns 400; valid missing and foreign-owned IDs both return the same 404 TASK_NOT_FOUND. Unexpected database failures use the existing generic 500 handler. Authentication and CSRF behavior remains unchanged. Successful task persistence and actual index behavior still require isolated MongoDB integration verification; routine tests use mocks and real in-memory model validation.

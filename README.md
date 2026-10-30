@@ -2,7 +2,7 @@
 
 A proposed full-stack task manager for the AppRo8 Full Stack Developer Internship (Weeks 3–4).
 
-**Status: Phase 2 mock-data prototype built; desktop design approved; final responsive refinements verified. Production backend includes MongoDB lifecycle, the User model and Phase 3.3 cookie authentication; task endpoints and the production frontend remain unimplemented.**
+**Status: Phase 2 mock-data prototype built; desktop design approved; final responsive refinements verified. Production backend includes MongoDB lifecycle, cookie authentication and Phase 3.4 owner-scoped task management; the production frontend remains unimplemented.**
 
 Repository: [Oseni-Tomiwa/task-manager-fullstack](https://github.com/Oseni-Tomiwa/task-manager-fullstack).
 Internal target: November 9, 2026. Official deadline: November 12, 2026.
@@ -28,6 +28,7 @@ Browser → React client → Express API → MongoDB Atlas. The API authenticate
 - [Phase 3.1 backend foundation](docs/phase-3.1-backend.md)
 - [Phase 3.2 MongoDB foundation](docs/phase-3.2-database.md)
 - [Phase 3.3 secure authentication](docs/phase-3.3-authentication.md)
+- [Phase 3.4 task API](docs/phase-3.4-task-api.md)
 
 ## Proposed repository structure
 
@@ -105,4 +106,6 @@ cp .env.example .env
 pnpm dev
 ```
 
-`GET /api/health` returns HTTP 200 with `{"status":"ok"}`. Startup now requires an authorized local/development MongoDB URI and connects before listening; health remains process liveness. A typed User model defines validation and the unique email index. Cookie authentication is now implemented; no task API or deployment has been added.
+`GET /api/health` returns HTTP 200 with `{"status":"ok"}`. Startup now requires an authorized local/development MongoDB URI and connects before listening; health remains process liveness. A typed User model defines validation and the unique email index. Cookie authentication and owner-scoped task CRUD/search/filtering/pagination are implemented. No deployment has occurred.
+
+Production task statuses are `todo`, `in_progress`, `completed`; future frontend code must use these values. The approved prototype retains its original mock-only status names. See the task API document for the explicit mapping and request/response contracts.
