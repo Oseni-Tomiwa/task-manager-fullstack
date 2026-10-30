@@ -1,8 +1,16 @@
 import mongoose from "mongoose";
-import type { InferSchemaType, Model } from "mongoose";
+import type { Model } from "mongoose";
 import { z } from "zod";
 
-const userSchema = new mongoose.Schema(
+export interface UserRecord {
+  name: string;
+  email: string;
+  passwordHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const userSchema = new mongoose.Schema<UserRecord>(
   {
     name: {
       type: String,
@@ -43,7 +51,6 @@ const userSchema = new mongoose.Schema(
   },
 );
 userSchema.index({ email: 1 }, { unique: true });
-export type UserRecord = InferSchemaType<typeof userSchema>;
 export const User =
   (mongoose.models.User as Model<UserRecord> | undefined) ??
   mongoose.model<UserRecord>("User", userSchema);

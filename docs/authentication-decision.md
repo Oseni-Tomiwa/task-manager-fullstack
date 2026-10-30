@@ -1,6 +1,6 @@
 # Authentication architecture review — Phase 2
 
-Status: recommendation for review, not implemented. This note evaluates a change to the Phase 1 memory-only JWT proposal; it does not imply production approval.
+Status: cookie authentication implemented in Phase 3.3; live database and hosting/proxy integration remain unverified. See [the implemented contract](phase-3.3-authentication.md). Historical options and recommendations follow. This note evaluates a change to the Phase 1 memory-only JWT proposal; it does not imply production approval.
 
 ## Options and recommendation
 
