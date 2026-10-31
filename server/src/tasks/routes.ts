@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Types } from "mongoose";
+import { Types } from "mongoose";
 import type { AuthConfig } from "../config/auth.js";
 import { requireAuth, csrfProtection } from "../auth/middleware.js";
 import { Task } from "../models/task.js";
@@ -35,6 +35,28 @@ export function taskRouter(config: AuthConfig) {
   const router = Router();
   router.use(requireAuth(config));
   router.use(csrfProtection(config));
+  router.get("/summary", async (req, res) => {
+    if (Object.keys(req.query).length) {
+      res.status(400).json(invalid);
+      return;
+    }
+    // Aggregation pipelines do not apply Mongoose's normal query casting.
+    const rows = await Task.aggregate<{
+      _id: TaskRecord["status"];
+      count: number;
+    }>([
+      { $match: { owner: new Types.ObjectId(req.user!.id) } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+    const summary = { total: 0, todo: 0, in_progress: 0, completed: 0 };
+    for (const row of rows) {
+      if (["todo", "in_progress", "completed"].includes(row._id)) {
+        summary[row._id] = row.count;
+        summary.total += row.count;
+      }
+    }
+    res.status(200).json({ data: { summary } });
+  });
   router.post("/", async (req, res) => {
     const result = createTaskSchema.safeParse(req.body);
     if (!result.success || Object.keys(req.query).length) {

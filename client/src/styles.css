@@ -1177,3 +1177,9 @@ small {
 .skip-link:focus {
   transform: none;
 }
+
+.session-notice {
+  margin: 0;
+  padding: 12px 24px;
+  text-align: center;
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { statusLabels } from "../api/contracts";
 import type { Task, TaskValues } from "../api/contracts";
@@ -16,11 +16,12 @@ export function TaskForm({
   onSave: (values: TaskValues) => Promise<void>;
   onClose: () => void;
 }) {
+  const pending = useRef(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || pending.current) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const values = {
@@ -37,6 +38,7 @@ export function TaskForm({
         ?.focus();
       return;
     }
+    pending.current = true;
     try {
       await onSave(values as TaskValues);
     } catch (error) {
@@ -45,6 +47,8 @@ export function TaskForm({
           ? error.message
           : "We couldn’t save your task. Please try again.",
       );
+    } finally {
+      pending.current = false;
     }
   }
   return (

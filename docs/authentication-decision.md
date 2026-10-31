@@ -1,6 +1,6 @@
 # Authentication architecture review — Phase 2
 
-Status: cookie authentication implemented in Phase 3.3; live database and hosting/proxy integration remain unverified. See [the implemented contract](phase-3.3-authentication.md). Historical options and recommendations follow. This note evaluates a change to the Phase 1 memory-only JWT proposal; it does not imply production approval.
+Status: cookie authentication implemented in Phase 3.3; local real-database integration verified in Phase 3.5 and local frontend/proxy/browser integration in Phase 4.2. Hosting/proxy deployment remains unverified. See [the implemented contract](phase-3.3-authentication.md). Historical options and recommendations follow. This note evaluates a change to the Phase 1 memory-only JWT proposal; it does not imply production approval.
 
 ## Options and recommendation
 
@@ -57,3 +57,7 @@ Before production acceptance verify: login's Set-Cookie reaches the browser on t
 If the rewrite does not preserve required cookie/header semantics, use a small same-origin forwarding function with a fixed backend destination and explicit header/cookie forwarding, then repeat those checks. Do not silently switch to third-party `SameSite=None` cookies or weaken origin validation. An opaque database-backed session would offer immediate revocation, but adds session storage and changes the planned JWT approach; it is unnecessary unless that becomes a requirement. The current JWT recommendation deliberately accepts up to 30 minutes of stolen-token validity after browser logout.
 
 Sources rechecked: [Vercel rewrites and external-origin proxying](https://vercel.com/docs/routing/rewrites), [OWASP CSRF custom-header and origin guidance](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html). Cookie/CORS details remain linked above. The deployment recommendation is an engineering inference from supported proxy capabilities, not evidence of a deployed TaskFlow setup.
+
+## Phase 4.2 local integration
+
+The production client now restores `/auth/me`, sends same-origin cookie requests and the required JSON/custom header, and clears private state on protected 401 responses. Local Vite proxy cookie forwarding and exact-origin CSRF rejection were exercised against the dedicated local MongoDB test database. This does not validate Vercel/Render, HTTPS Secure-cookie behavior, proxy IP trust or CDN caching. The deployment acceptance checklist above remains required; see [the Phase 4.2 report](phase-4.2-fullstack-integration.md).

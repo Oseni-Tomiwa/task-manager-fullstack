@@ -6,6 +6,7 @@ import type {
   TaskListResponse,
   TaskQuery,
   TaskResponse,
+  TaskSummaryResponse,
   UpdateTaskInput,
   UserResponse,
 } from "./contracts";
@@ -22,10 +23,11 @@ export class ApiError extends Error {
   }
 }
 const fallback = "We couldn’t complete that request. Please try again.";
-// Same-origin paths only: cookie auth requires a verified proxy in Phase 4.2.
+// Same-origin paths only: cookies stay on the frontend origin.
 export function createApiClient(
   base = import.meta.env.VITE_API_BASE_URL || "/api",
   transport: typeof fetch = fetch,
+  onUnauthorized?: () => void,
 ) {
   if (!/^\/(?!\/)[a-zA-Z0-9/_-]+$/.test(base))
     throw new Error("API base must be a same-origin path.");
@@ -63,6 +65,12 @@ export function createApiClient(
         "We couldn’t reach TaskFlow. Check your connection and try again.",
       );
     }
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    if (
+      response.status === 401 &&
+      (path.startsWith("/tasks") || path === "/auth/logout")
+    )
+      onUnauthorized?.();
     if (response.status === 204) return undefined as T;
     let payload: unknown;
     try {
@@ -107,6 +115,8 @@ export function createApiClient(
         signal,
       );
     },
+    summary: (signal?: AbortSignal) =>
+      send<TaskSummaryResponse>("/tasks/summary", "GET", undefined, signal),
     getTask: (id: string, signal?: AbortSignal) =>
       send<TaskResponse>(
         `/tasks/${encodeURIComponent(id)}`,

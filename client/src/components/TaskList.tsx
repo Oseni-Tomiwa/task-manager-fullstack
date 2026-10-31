@@ -33,6 +33,7 @@ export function TaskList({
             <button
               className="complete-button"
               aria-label={`${task.status === "completed" ? "Mark incomplete" : "Mark complete"}: ${task.title}`}
+              data-task-toggle={task.id}
               aria-pressed={task.status === "completed"}
               onClick={() => onToggle(task)}
               disabled={busy}

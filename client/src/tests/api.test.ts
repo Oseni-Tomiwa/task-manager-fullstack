@@ -140,3 +140,33 @@ it("returns a safe actionable error for network failures without exposing transp
     message: "We couldn’t reach TaskFlow. Check your connection and try again.",
   });
 });
+
+it("reads the unfiltered summary with cancellation and routes protected 401s to session handling", async () => {
+  const transport = vi.fn().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        error: { code: "UNAUTHENTICATED", message: "Please sign in." },
+      }),
+      { status: 401 },
+    ),
+  );
+  const unauthorized = vi.fn();
+  const api = createApiClient("/api", transport, unauthorized);
+  const signal = new AbortController().signal;
+  await expect(api.summary(signal)).rejects.toMatchObject({ status: 401 });
+  expect(transport).toHaveBeenCalledWith(
+    "/api/tasks/summary",
+    expect.objectContaining({
+      signal,
+      credentials: "same-origin",
+      method: "GET",
+    }),
+  );
+  expect(unauthorized).toHaveBeenCalledOnce();
+  unauthorized.mockClear();
+  await expect(
+    api.login({ email: "test@example.com", password: "wrong password" }),
+  ).rejects.toMatchObject({ status: 401 });
+  await expect(api.me()).rejects.toMatchObject({ status: 401 });
+  expect(unauthorized).not.toHaveBeenCalled();
+});

@@ -370,6 +370,28 @@ describe.sequential("real MongoDB and loopback HTTP", () => {
         .body.meta.total,
     ).toBe(0);
   });
+  it("returns real owner-scoped global summary independent of list filters and pages", async () => {
+    const alice = await read("/api/tasks/summary");
+    expect(alice.status).toBe(200);
+    expect(alice.headers["cache-control"]).toBe("no-store");
+    expect(alice.body).toEqual({
+      data: { summary: { total: 2, todo: 0, in_progress: 1, completed: 1 } },
+    });
+    const bob = await read("/api/tasks/summary", bobCookie);
+    expect(bob.body.data.summary).toEqual({
+      total: 1,
+      todo: 1,
+      in_progress: 0,
+      completed: 0,
+    });
+    expect(
+      (await read("/api/tasks?status=completed&limit=1&page=2")).body.data
+        .tasks,
+    ).toEqual([]);
+    expect((await read("/api/tasks/summary")).body).toEqual(alice.body);
+    expect((await read("/api/tasks/summary?owner=other")).status).toBe(400);
+    expect((await read("/api/tasks/summary", "")).status).toBe(401);
+  });
   it("rejects invalid bodies, IDs, queries and unauthorized access without writes", async () => {
     const before = await Task.countDocuments({ owner: aliceId });
     for (const body of [

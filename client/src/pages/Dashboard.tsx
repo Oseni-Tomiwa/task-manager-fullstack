@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LogOut, Plus, X } from "lucide-react";
 import type { Task, TaskStatus } from "../api/contracts";
-import { usePreviewTasks } from "../preview/workspace";
+import { useTasks, PAGE_SIZE } from "../tasks/useTasks";
+import type { createApiClient } from "../api/client";
 import { ActionButton } from "../components/ActionButton";
 import { Brand } from "../components/Brand";
 import { Modal } from "../components/Modal";
@@ -12,16 +13,15 @@ import { TaskToolbar } from "../components/TaskToolbar";
 import { TaskState } from "../components/TaskState";
 import { Pagination } from "../components/Pagination";
 
-const PAGE_SIZE = 6;
 export function Dashboard({
   name,
+  api,
   logout,
 }: {
   name: string;
-  logout: () => void;
+  api: ReturnType<typeof createApiClient>;
+  logout: () => Promise<void>;
 }) {
-  const { tasks, counts, mode, busy, reload, save, toggle, remove } =
-    usePreviewTasks();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<TaskStatus | "all">("all");
   const [page, setPage] = useState(1);
@@ -29,18 +29,64 @@ export function Dashboard({
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Task | null | undefined>();
   const [deleting, setDeleting] = useState<Task | null>(null);
-  const filtered = tasks.filter(
-    (task) =>
-      task.title.toLowerCase().includes(query.trim().toLowerCase()) &&
-      (status === "all" || task.status === status),
-  );
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pages);
-  const visible = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
+  const {
+    tasks,
+    meta,
+    counts,
+    mode,
+    summaryMode,
+    retrySummary,
+    hasLoaded,
+    busy: saving,
+    reload,
+    save,
+    toggle,
+    remove,
+  } = useTasks(api, query, status, page, setPage);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const busy = saving || loggingOut;
+  const focusAfterLoad = useRef<{
+    trigger: Element | null;
+    taskId?: string;
+  } | null>(null);
+  useEffect(() => {
+    if (mode !== "ready" || busy || !focusAfterLoad.current) return;
+    const pending = focusAfterLoad.current;
+    focusAfterLoad.current = null;
+    // A user may have moved to search while waiting: never steal that focus.
+    if (
+      document.activeElement !== document.body &&
+      document.activeElement !== pending.trigger
+    )
+      return;
+    const toggle = pending.taskId
+      ? Array.from(
+          document.querySelectorAll<HTMLButtonElement>("[data-task-toggle]"),
+        ).find((button) => button.dataset.taskToggle === pending.taskId)
+      : undefined;
+    (toggle ?? document.getElementById("tasks-heading"))?.focus();
+  }, [mode, busy, tasks]);
+  async function signOut() {
+    if (busy) return;
+    setLoggingOut(true);
+    setError("");
+    try {
+      await logout();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "We couldn’t log you out. Please try again.",
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  }
   async function complete(task: Task) {
+    focusAfterLoad.current = {
+      trigger: document.activeElement,
+      taskId: task.id,
+    };
     setError("");
     setNotice("");
     try {
@@ -51,6 +97,7 @@ export function Dashboard({
           : "Task completed. A little win worth celebrating.",
       );
     } catch (error) {
+      focusAfterLoad.current = null;
       setError(
         error instanceof Error
           ? error.message
@@ -95,7 +142,7 @@ export function Dashboard({
             <ActionButton
               label="Log out"
               tooltip="Log out"
-              onClick={logout}
+              onClick={() => void signOut()}
               disabled={busy}
             >
               <LogOut size={18} />
@@ -115,21 +162,36 @@ export function Dashboard({
           <button
             className="primary"
             onClick={() => setEditing(null)}
-            disabled={busy || mode !== "ready"}
+            disabled={busy || !hasLoaded}
           >
             <Plus size={18} />
             New task
           </button>
         </div>
-        {mode === "ready" && <TaskSummary counts={counts} />}
+        {counts && <TaskSummary counts={counts} />}
+        {summaryMode === "loading" && (
+          <p className="muted" role="status">
+            Loading task summary…
+          </p>
+        )}
+        {summaryMode === "error" && (
+          <div className="task-error">
+            <p className="error" role="alert">
+              We couldn’t load your task summary.
+            </p>
+            <button className="secondary" onClick={retrySummary}>
+              Retry summary
+            </button>
+          </div>
+        )}
         <section
           className="tasks-panel"
           aria-labelledby="tasks-heading"
           aria-busy={mode === "loading"}
         >
           <div className="task-panel-heading">
-            <h2 id="tasks-heading">
-              Your tasks {mode === "ready" && <span>{tasks.length}</span>}
+            <h2 id="tasks-heading" tabIndex={-1}>
+              Your tasks {mode === "ready" && <span>{meta?.total}</span>}
             </h2>
             <span className="muted text-sm">A clearer view of what’s next</span>
           </div>
@@ -147,7 +209,7 @@ export function Dashboard({
           />
           {mode === "ready" && (
             <p className="sr-only" role="status">
-              {filtered.length} matching tasks
+              {meta?.total} matching tasks
             </p>
           )}
           {error && !deleting && (
@@ -155,10 +217,12 @@ export function Dashboard({
               {error}
             </p>
           )}
-          {mode !== "ready" || !visible.length ? (
+          {mode !== "ready" || !tasks.length ? (
             <TaskState
               mode={mode === "ready" ? "empty" : mode}
-              hasTasks={tasks.length > 0}
+              hasTasks={Boolean(
+                query.trim() || status !== "all" || (counts?.total ?? 0) > 0,
+              )}
               onRetry={() => void reload()}
               onClear={clearFilters}
               onCreate={() => setEditing(null)}
@@ -166,7 +230,7 @@ export function Dashboard({
           ) : (
             <>
               <TaskList
-                tasks={visible}
+                tasks={tasks}
                 busy={busy}
                 onToggle={(task) => void complete(task)}
                 onEdit={setEditing}
@@ -176,11 +240,14 @@ export function Dashboard({
                 }}
               />
               <Pagination
-                page={currentPage}
-                pages={pages}
-                total={filtered.length}
+                page={meta!.page}
+                pages={Math.max(1, meta!.totalPages)}
+                total={meta!.total}
                 limit={PAGE_SIZE}
-                onPage={setPage}
+                onPage={(nextPage) => {
+                  focusAfterLoad.current = { trigger: document.activeElement };
+                  setPage(nextPage);
+                }}
               />
             </>
           )}

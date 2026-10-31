@@ -44,3 +44,11 @@ export const statusLabels: Record<TaskStatus, string> = {
   in_progress: "In progress",
   completed: "Completed",
 };
+
+export type TaskCounts = {
+  total: number;
+  todo: number;
+  in_progress: number;
+  completed: number;
+};
+export type TaskSummaryResponse = { data: { summary: TaskCounts } };

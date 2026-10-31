@@ -1,68 +1,57 @@
 # TaskFlow client
 
-Production React frontend foundation for Phase 4.1. **The current app uses isolated presentation data and a mock session. It is not connected to the backend.** Real authentication and task persistence are reserved for Phase 4.2. The approved `prototype/` remains unchanged.
+Production React client integrated with the Express/MongoDB API in Phase 4.2. Registration, login, restored sessions and tasks use the real API. The approved `prototype/` remains separate and unchanged. There are no preview credentials, fixtures or browser token storage in this app.
 
-## Run locally
+## Local startup
 
-Use Node.js 24.10+ and pnpm 10.15.1. From the repository root:
+Use Node.js 24.10+ and pnpm 10.15.1. Client/server keep independent manifests and lockfiles; no new dependencies were needed for integration.
+
+1. Configure and start an authorized local/development MongoDB database. Never use production credentials for development or verification.
+2. In `server/`, install with `pnpm install --frozen-lockfile`, copy `.env.example` to ignored `.env`, and privately configure `MONGODB_URI` and a fresh `JWT_SECRET` (`openssl rand -hex 32`). Keep `CLIENT_ORIGIN=http://127.0.0.1:5173`, `HOST=127.0.0.1`, `PORT=3000` and `NODE_ENV=development`. Run `pnpm dev`.
+3. In another terminal, from `client/`:
 
 ```sh
-cd client
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open Vite's printed address (normally `http://127.0.0.1:5173`). If the prototype already uses that port, stop it or use `pnpm dev --port 5174 --strictPort`. No backend or MongoDB is required for this phase.
+Open **http://127.0.0.1:5173**. Register your own development account; there is no demo sign-in. Do not run the prototype on the same port. Vite uses strict port 5173 and fails if occupied rather than silently breaking the server's exact Origin configuration. `localhost` is a different origin: use the printed `127.0.0.1` URL.
 
-Preview sign-in: `demo@taskflow.app` / `TaskflowDemo!2026`. Registration accepts valid made-up details and creates no real account. Session and task changes live only in memory and reset on reload/logout. Never enter real credentials into this preview. The production build also contains this clearly labeled preview; building it is not authorization to deploy it.
+Vite forwards `/api` to the fixed loopback backend `http://127.0.0.1:3000`, preserving Origin and cookie headers (`changeOrigin: false`). No browser-to-backend CORS configuration is needed. Do not rewrite hostile origins into trusted ones. For a deliberate local port change, update both frontend port and server `CLIENT_ORIGIN`, and the fixed proxy target if changing the backend port. No arbitrary client-selected upstream exists.
 
-## Scripts
+`client/.env.example` contains only public `VITE_API_BASE_URL=/api`; no client environment file is normally required. This is a same-origin path, never a database URI, signing key or token. Real environment files are ignored. Vite's development proxy is **not** included in a static production build; `pnpm preview` alone does not establish a verified production API proxy.
 
-| Script              | Purpose                                                          |
-| ------------------- | ---------------------------------------------------------------- |
-| `pnpm dev`          | Local Vite server on loopback                                    |
-| `pnpm typecheck`    | TypeScript, including tests and tool configs                     |
-| `pnpm lint`         | ESLint and React hooks rules                                     |
-| `pnpm format:check` | Check formatting                                                 |
-| `pnpm format`       | Apply formatting                                                 |
-| `pnpm test`         | Focused Vitest/Testing Library interaction and HTTP-helper tests |
-| `pnpm test:watch`   | Watch tests                                                      |
-| `pnpm build`        | Typecheck and produce `dist/`                                    |
-| `pnpm preview`      | Serve the local compiled build                                   |
+## Commands
 
-## Structure
+```sh
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm test
+pnpm build
+```
 
-- `src/App.tsx`: routing, presentation session boundary, title/route focus.
-- `src/pages/`: authentication form and dashboard composition.
-- `src/components/`: branding, icon actions/tooltips, modal, field errors, task form/list/summary/toolbar/states, pagination.
-- `src/api/contracts.ts`: exact public backend DTOs and production status values.
-- `src/api/client.ts`: small centralized, typed fetch helper. Tested independently; never called by the current UI.
-- `src/preview/workspace.ts`: removable fixture, mock session and task-state module. No duplicate mock server, browser storage, or production/mock switch.
-- `src/validation.ts`: client-side input feedback aligned with documented limits; backend validation remains authoritative.
-- `src/styles.css`: approved prototype styling adapted to production status names, with focus/overflow refinements. Tailwind v4 is installed through its Vite plugin; approved component CSS is retained rather than rewritten for appearance alone.
-- `src/tests/`: critical behavior tests, without snapshots. jsdom's dialog shim does not certify native browser modal behavior.
+Also available: `pnpm format`, `pnpm test:watch`, `pnpm preview`. Ordinary frontend tests use controlled fetch responses and jsdom, not MongoDB. From `server/`, `pnpm test:integration` runs the separate real MongoDB/HTTP suite after its strict local test-target safety check. See the Phase 3.5 report for dedicated integration-file configuration.
 
-Client, server and prototype retain separate pnpm manifests/lockfiles. Root workspace migration is deliberately deferred to avoid changing the verified backend/prototype installation in this UI milestone.
+## Implementation
 
-## Environment and prepared API boundary
+- `src/App.tsx`: protected routes, session restoration/error/retry boundary, route titles/focus and expiry notice.
+- `src/auth/useSession.ts`: public user state, cancellable `/auth/me`, auth/logout operations and session epochs that ignore obsolete protected-request failures.
+- `src/tasks/useTasks.ts`: backend six-row pagination, approximately 300 ms title-search debounce, filters, independent summary, abort/stale-response guards and guarded pessimistic mutations. A completed write invalidates reads separately, so a failed refresh never invites resubmitting a successful creation.
+- `src/api/client.ts` / `contracts.ts`: centralized same-origin fetch helper and public DTOs. All mutations use JSON plus `X-TaskFlow-Request: 1`; DELETE/logout send `{}` and handle empty 204s. The browser supplies Origin. Protected 401s clear private UI; invalid login credentials stay on the form. Responses are compile-time typed, not runtime-schema validated.
+- `src/pages/`, `src/components/`, `src/styles.css`: preserved approved interface, accessible feedback/dialogs, form value retention, pending guards and focus recovery after list reloads. Focus recovery does not steal focus from a user who moved elsewhere during the request.
+- `src/tests/`: focused request, session, task and component/validation tests. Test HTTP fixtures exist only under tests and never ship with the application.
 
-No environment file is needed to review Phase 4.1. The ignored environment file, if later needed, can be created with `cp .env.example .env`. `VITE_API_BASE_URL` is a **public** build-time same-origin path, default `/api`; absolute/cross-origin URLs are rejected. Never place passwords, database URIs or signing keys in frontend variables.
+Production statuses: `todo`, `in_progress`, `completed`; “Pending” labels `todo`. Lists use server-createdAt/_id descending ordering. Dashboard-wide counts come from authenticated `GET /api/tasks/summary`, never the visible/filtered page. List and summary reads are not a shared transaction snapshot; other tabs' concurrent changes become visible on the next read. Out-of-range pages recover to the last available page.
 
-Prepared methods cover register/login/logout/me, task create/list/get/update/delete and search/status/page/limit query parameters. DTO dates are ISO strings, IDs use public `id`, list results contain `data.tasks` and `meta.page/limit/total/totalPages`, and errors contain `error.code/message/fields?`. There is no token field and no summary endpoint. Production statuses are `todo`, `in_progress`, `completed`; “Pending” is a display label for `todo`.
+## Session and failures
 
-The helper sends `credentials: 'same-origin'`, `cache: 'no-store'`, and JSON plus `X-TaskFlow-Request: 1` on mutations. DELETE/logout send `{}` and handle empty 204 responses. The browser supplies Origin; do not fabricate that header in client code. Reads accept AbortSignal. The helper preserves structured API errors and aborts, and gives safe errors for network/non-JSON responses. It provides compile-time contracts, not runtime response-schema validation.
+An HttpOnly cookie carries a 30-minute JWT. No localStorage/sessionStorage tokens, refresh tokens or rolling sessions. Initial `/auth/me` completes before route decisions; network/server restoration failure offers retry. A protected 401 clears tasks/dialogs and explains that sign-in is required. Login/registration retain inputs after errors; the server remains authoritative for validation. Logout clears private UI only after success; failures stay retryable.
 
-No Vite API proxy, live `/me` restoration, CORS change, database connection or deployment configuration is enabled in Phase 4.1. A verified same-origin proxy and exact server `CLIENT_ORIGIN` are part of Phase 4.2/local integration.
+Task writes are disabled while pending. Recoverable write failures retain the edit form/delete confirmation; read failures show retry. Summary failures do not fabricate zeros or hide an independently successful list. Failed refresh after a successful write shows both truthful success feedback and a separate load-retry state.
 
-## Review states
+## Deployment boundary
 
-For local review only, add one of these to the login URL before signing in:
+No deployment is included. Phase 5 must configure a fixed Vercel `/api/:path*` rewrite to Render before the SPA fallback, exact HTTPS `CLIENT_ORIGIN`, proper non-cached forwarding of Cookie/Set-Cookie/Origin/custom headers and the production Secure HttpOnly host-only cookie. Verify actual proxy trust/IP handling before changing Express trust proxy or relying on auth rate limiting. Do not add permissive CORS or third-party-cookie workarounds.
 
-- `/login?previewState=loading`: hold initial loading.
-- `/login?previewState=error`: load error with working retry.
-- `/login?previewState=empty`: empty account and first-task action.
-- `/login?previewState=save-error`: first mutation fails, values/data remain intact, retry succeeds.
-
-These selectors live only in the removable preview module. The prototype playground is not part of the production component layout.
-
-See [the Phase 4.1 report](../docs/phase-4.1-frontend.md) for verification evidence, browser limitations, changed-file inventory and the Phase 4.2 integration plan.
+See [Phase 4.2 results and Git handoff](../docs/phase-4.2-fullstack-integration.md) for actual evidence, screenshots and remaining risks.

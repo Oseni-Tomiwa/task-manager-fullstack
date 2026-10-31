@@ -8,13 +8,21 @@ import {
 } from "react-router-dom";
 import { AuthPage } from "./pages/AuthPage";
 import { Dashboard } from "./pages/Dashboard";
-import { usePreviewSession } from "./preview/workspace";
+import { useSession } from "./auth/useSession";
 import type { RegisterInput } from "./api/contracts";
 import "./styles.css";
 
 export default function App() {
-  // Phase 4.2 replaces this presentation session with /auth/me and auth context.
-  const { user, signIn: previewLogin, logout } = usePreviewSession();
+  const {
+    user,
+    phase,
+    epoch,
+    expired,
+    api,
+    signIn: authenticate,
+    logout,
+    retry,
+  } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
   useEffect(() => {
@@ -23,23 +31,38 @@ export default function App() {
       document.querySelector<HTMLElement>(".auth-form h2") ??
       document.querySelector<HTMLElement>("h1");
     heading?.focus();
-  }, [location.pathname]);
+  }, [location.pathname, phase, user?.id]);
   async function signIn(values: RegisterInput, register: boolean) {
-    await previewLogin(values, register);
-    navigate("/dashboard" + location.search);
+    await authenticate(values, register);
+    navigate("/dashboard", { replace: true });
   }
+  if (phase !== "ready")
+    return (
+      <main className="state-panel" id="main-content">
+        {phase === "restoring" ? (
+          <p role="status">Restoring your session…</p>
+        ) : (
+          <>
+            <p role="alert">
+              We couldn’t restore your session. Please try again.
+            </p>
+            <button className="primary" onClick={retry}>
+              Try again
+            </button>
+          </>
+        )}
+      </main>
+    );
   return (
     <>
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
-      <div className="demo-banner">
-        Phase 4.1 preview{" "}
-        <span>
-          Mock session and tasks — changes reset on reload. Backend integration
-          follows in Phase 4.2. Use made-up credentials.
-        </span>
-      </div>
+      {expired && !user && (
+        <p className="error session-notice" role="alert">
+          Your session has expired. Please sign in again.
+        </p>
+      )}
       <Routes>
         <Route
           path="/login"
@@ -66,14 +89,13 @@ export default function App() {
           element={
             user ? (
               <Dashboard
-                name={user}
-                logout={() => {
-                  logout();
-                  navigate("/login", { replace: true });
-                }}
+                key={`${user.id}:${epoch}`}
+                api={api}
+                name={user.name}
+                logout={logout}
               />
             ) : (
-              <Navigate to={`/login${location.search}`} replace />
+              <Navigate to="/login" replace />
             )
           }
         />

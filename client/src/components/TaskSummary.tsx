@@ -5,12 +5,7 @@ import {
   Layers,
   LoaderCircle,
 } from "lucide-react";
-export type TaskCounts = {
-  total: number;
-  todo: number;
-  in_progress: number;
-  completed: number;
-};
+import type { TaskCounts } from "../api/contracts";
 export function TaskSummary({ counts }: { counts: TaskCounts }) {
   const complete = counts.completed;
   const percentage = counts.total

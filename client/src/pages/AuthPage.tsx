@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check, LoaderCircle } from "lucide-react";
+import { ApiError } from "../api/client";
 import { Brand } from "../components/Brand";
 import { FieldError } from "../components/FieldError";
 import { validateCredentials } from "../validation";
@@ -15,13 +16,14 @@ export function AuthPage({
   register: boolean;
   onSubmit: (values: RegisterInput, register: boolean) => Promise<void>;
 }) {
+  const pending = useRef(false);
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (pending.current) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const values = {
@@ -40,16 +42,26 @@ export function AuthPage({
         ?.focus();
       return;
     }
+    pending.current = true;
     setBusy(true);
     try {
       await onSubmit(values, register);
     } catch (error) {
+      if (error instanceof ApiError && error.fields) {
+        const fields: FieldErrors = {};
+        for (const key of ["name", "email", "password"] as const) {
+          const message = error.fields[key]?.[0];
+          if (typeof message === "string") fields[key] = message;
+        }
+        setErrors(fields);
+      }
       setError(
         error instanceof Error
           ? error.message
           : "We couldn’t sign you in. Please try again.",
       );
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
@@ -153,8 +165,8 @@ export function AuthPage({
             <FieldError id="password-error" message={errors.password} />
             <small id="password-help">
               {register
-                ? "12+ characters, up to 72 UTF-8 bytes. Use a made-up password."
-                : "Use the demo credentials below. No real account required."}
+                ? "Use at least 12 characters, up to 72 UTF-8 bytes."
+                : "Sign in with your TaskFlow account."}
             </small>
             {error && (
               <p className="error" role="alert">
@@ -168,24 +180,17 @@ export function AuthPage({
             </button>
           </form>
           <p className="auth-switch">
-            {register ? "Already exploring?" : "New to TaskFlow?"}{" "}
-            <Link to={register ? "/login" : "/register"}>
+            {register ? "Already have an account?" : "New to TaskFlow?"}{" "}
+            <Link
+              to={register ? "/login" : "/register"}
+              aria-disabled={busy || undefined}
+              onClick={(event) => {
+                if (busy) event.preventDefault();
+              }}
+            >
               {register ? "Sign in" : "Create an account"}
             </Link>
           </p>
-          <aside className="demo-credentials">
-            <span className="eyebrow">TAKE A LOOK AROUND</span>
-            <p>
-              Demo email: <strong>demo@taskflow.app</strong>
-              <br />
-              Demo password: <strong>TaskflowDemo!2026</strong>
-            </p>
-            <small>
-              Phase 4.1 preview only. Registration accepts valid made-up
-              details. No account is created, no password is saved, and nothing
-              connects to the backend.
-            </small>
-          </aside>
         </div>
       </section>
     </main>

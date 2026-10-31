@@ -1,4 +1,4 @@
-# TaskFlow server — Phase 3.4
+# TaskFlow server — Phase 4.2
 
 Express/TypeScript backend with MongoDB lifecycle, a typed User model and cookie-based JWT authentication. Authenticated owner-scoped task CRUD, search, status filters and pagination are implemented.
 
@@ -106,6 +106,18 @@ Production status values are exactly todo, in_progress and completed, with todo 
 
 Title is required, trimmed and 1–120 characters. Description is trimmed, at most 2000 characters and defaults to empty. Owner is a required immutable User reference assigned only from req.user.id; no populated user data or owner field is returned. Timestamps are maintained by Mongoose. A compound owner/createdAt/_id index supports owned-list queries. Unknown fields, client-supplied owner/IDs/timestamps/operators and empty PATCH bodies are rejected. Updates use an explicit $set and runValidators with returnDocument:after.
 
-List query: q (literal case-insensitive title substring, max 120), optional status, page (1–10000, default 1), limit (1–100, default 20). Unknown/repeated/operator-shaped query parameters are rejected. Sorting is createdAt descending then _id descending. Empty results use totalPages=0; an out-of-range page stays empty rather than silently changing page. Counts and lists are separate queries and may drift under concurrent writes. There is no search service, summary endpoint or transaction snapshot.
+List query: q (literal case-insensitive title substring, max 120), optional status, page (1–10000, default 1), limit (1–100, default 20). Unknown/repeated/operator-shaped query parameters are rejected. Sorting is createdAt descending then _id descending. Empty results use totalPages=0; an out-of-range page stays empty rather than silently changing page. Counts and lists are separate queries and may drift under concurrent writes. There is no search service or transaction snapshot. Phase 4.2 adds the separate unfiltered summary endpoint below.
 
 Every task query includes the authenticated owner, including counts, updates and deletes. A malformed ObjectId returns 400; valid missing and foreign-owned IDs both return the same 404 TASK_NOT_FOUND. Unexpected database failures use the existing generic 500 handler. Authentication and CSRF behavior remains unchanged. Successful task persistence and actual index behavior still require isolated MongoDB integration verification; routine tests use mocks and real in-memory model validation.
+
+## Phase 4.2 summary and same-origin development
+
+`GET /api/tasks/summary` requires the same cookie/current-user authentication as all task routes. It returns HTTP 200 with `{data:{summary:{total,todo,in_progress,completed}}}`; all four counts are numeric and default to zero. Query parameters are rejected with 400. The static route precedes task-ID validation. One aggregation explicitly casts the authenticated owner to ObjectId, matches only that owner and groups by status; no client owner/filter is accepted. No task contents, owner IDs or user secrets are returned. Responses use existing no-store and generic error handling.
+
+The client uses this global summary independently of filtered/paginated lists. No new dependency, database collection, model or index is required. Counts and lists are separate read snapshots; offset pagination can shift under concurrent changes. Existing five task endpoints retain their contracts.
+
+For local integration, start the backend on `127.0.0.1:3000` with exact `CLIENT_ORIGIN=http://127.0.0.1:5173`, then start `client/` with `pnpm dev`. Vite's fixed `/api` proxy preserves the original browser Origin and cookies. Keep production CORS disabled; never weaken exact-origin/header/JSON CSRF checks. Auth/logout and task writes must still carry `X-TaskFlow-Request: 1`; logout/DELETE use JSON `{}`. See [the client guide](../client/README.md) for setup and [Phase 4.2 verification](../docs/phase-4.2-fullstack-integration.md) for evidence.
+
+Routine tests use mocked persistence boundaries. `pnpm test:integration` explicitly selects the real local MongoDB suite (see [Phase 3.5](../docs/phase-3.5-integration.md)); missing/unsafe dedicated configuration fails rather than skipping. No Atlas access is required or authorized by the verification command.
+
+Vercel/Render API rewriting, TLS cookie behavior and trusted proxy/IP configuration remain deployment gates, not locally verified production behavior. Stateless JWT logout clears the browser cookie but cannot revoke a previously copied JWT before its 30-minute expiry.

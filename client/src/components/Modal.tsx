@@ -24,7 +24,8 @@ export function Modal({
       dialog.close();
       document.body.style.overflow = overflow;
       queueMicrotask(() => {
-        if (previous?.isConnected) previous.focus();
+        if (previous?.isConnected && !previous.matches(":disabled"))
+          previous.focus();
         else document.querySelector<HTMLHeadingElement>("h1")?.focus();
       });
     };
