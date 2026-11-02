@@ -2,7 +2,7 @@
 
 A full-stack task manager in development for the AppRo8 Full Stack Developer Internship (Weeks 3–4).
 
-**Status: Phase 4.2 full-stack integration is committed. Phase 5.1 audits production readiness and prepares local runtime/deployment guidance. The application is not deployed; production proxy, cookie, client-IP and Atlas behavior remain acceptance gates.**
+**Status: Phase 5.2A verifies the existing backend against local MongoDB under Node 24 and prepares the Atlas/Render/Vercel deployment sequence. The application is not deployed; production proxy identity, Atlas configuration and live HTTPS acceptance remain open gates.**
 
 Repository: [Oseni-Tomiwa/task-manager-fullstack](https://github.com/Oseni-Tomiwa/task-manager-fullstack).
 Internal target: November 9, 2026. Official deadline: November 12, 2026.
@@ -33,6 +33,7 @@ Browser → React client → Express API → MongoDB Atlas. The API authenticate
 - [Phase 4.1 production frontend foundation](docs/phase-4.1-frontend.md)
 - [Phase 4.2 full-stack integration and verification](docs/phase-4.2-fullstack-integration.md)
 - [Phase 5.1 production-readiness audit and deployment checklists](docs/phase-5.1-production-readiness.md)
+- [Phase 5.2A Node 24 verification and deployment preparation](docs/phase-5.2a-deployment-preparation.md)
 
 ## Proposed repository structure
 
