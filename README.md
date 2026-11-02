@@ -2,7 +2,7 @@
 
 A full-stack task manager in development for the AppRo8 Full Stack Developer Internship (Weeks 3–4).
 
-**Status: Phase 4.2 connects the production React client to the Express/MongoDB API. Authentication, persisted task management and accurate owner-scoped dashboard summaries are implemented. Local database/browser verification is documented below; no deployment has occurred.**
+**Status: Phase 4.2 full-stack integration is committed. Phase 5.1 audits production readiness and prepares local runtime/deployment guidance. The application is not deployed; production proxy, cookie, client-IP and Atlas behavior remain acceptance gates.**
 
 Repository: [Oseni-Tomiwa/task-manager-fullstack](https://github.com/Oseni-Tomiwa/task-manager-fullstack).
 Internal target: November 9, 2026. Official deadline: November 12, 2026.
@@ -32,6 +32,7 @@ Browser → React client → Express API → MongoDB Atlas. The API authenticate
 - [Phase 3.5 real MongoDB integration](docs/phase-3.5-integration.md)
 - [Phase 4.1 production frontend foundation](docs/phase-4.1-frontend.md)
 - [Phase 4.2 full-stack integration and verification](docs/phase-4.2-fullstack-integration.md)
+- [Phase 5.1 production-readiness audit and deployment checklists](docs/phase-5.1-production-readiness.md)
 
 ## Proposed repository structure
 
@@ -75,7 +76,7 @@ Planned checks: lint, formatting, TypeScript checks, client/server builds, API i
 
 ## Integrated frontend and backend
 
-Use Node.js 24.10+ and pnpm 10.15.1. See [client/README.md](client/README.md) and [server/README.md](server/README.md) for complete setup. Start an authorized development MongoDB database, privately configure the ignored server environment, then run these in separate terminals:
+Use Node.js 24 LTS (24.10+ within 24.x) and pnpm 10.15.1. The root `.nvmrc` selects verified 24.22.1. See [client/README.md](client/README.md) and [server/README.md](server/README.md) for complete setup. Start an authorized development MongoDB database, privately configure the ignored server environment, then run these in separate terminals:
 
 ```sh
 cd server

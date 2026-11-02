@@ -4,7 +4,7 @@ Express/TypeScript backend with MongoDB lifecycle, a typed User model and cookie
 
 ## Run locally
 
-Use Node.js 24.10+ (Node 24 LTS recommended) and pnpm 10.15.1. From the repository root:
+Use Node.js 24 LTS (24.10+ within 24.x) and pnpm 10.15.1. `server/.node-version` selects verified 24.22.1 when this directory is Render’s project root. From the repository root:
 
 ```bash
 cd server
@@ -121,3 +121,15 @@ For local integration, start the backend on `127.0.0.1:3000` with exact `CLIENT_
 Routine tests use mocked persistence boundaries. `pnpm test:integration` explicitly selects the real local MongoDB suite (see [Phase 3.5](../docs/phase-3.5-integration.md)); missing/unsafe dedicated configuration fails rather than skipping. No Atlas access is required or authorized by the verification command.
 
 Vercel/Render API rewriting, TLS cookie behavior and trusted proxy/IP configuration remain deployment gates, not locally verified production behavior. Stateless JWT logout clears the browser cookie but cannot revoke a previously copied JWT before its 30-minute expiry.
+
+## Phase 5.1 Render preparation
+
+No Render service or Atlas resource has been created. For a later authorized Render Web Service, choose Node runtime and Root Directory `server`. The `.node-version` file and bounded package engine keep the service on Node 24; a platform `NODE_VERSION` override takes precedence and must agree.
+
+Build command: `corepack pnpm install --frozen-lockfile --prod=false && corepack pnpm build`. TypeScript is a dev dependency, so installation must include dev dependencies even when `NODE_ENV=production`. Start command: `node dist/index.js`; this runs the existing production entry point directly with platform environment values, without needing a local `.env` file or package-manager activation at runtime. Keep pnpm 10.15.1 from `packageManager`; confirm Node/pnpm versions in build logs. Do not bypass package-manager signature verification or globally enable all dependency install scripts to work around a build failure. Native bcrypt availability still needs Linux hosting verification.
+
+Required platform values: `NODE_ENV=production`, `HOST=0.0.0.0`, Render-supplied `PORT`, private `MONGODB_URI`, private 64-hex `JWT_SECRET`, and exact canonical HTTPS `CLIENT_ORIGIN`. Use `/api/health` as the HTTP health path: it is liveness, not a continuous database readiness probe. Startup connects and initializes User indexes before listening. Existing SIGTERM draining has a 10-second deadline; verify the host delivers the signal and grants enough shutdown time.
+
+**Release blocker:** Express still deliberately trusts no proxy. Behind Render/Vercel the 10-attempt/15-minute limiter can group users by an ingress peer. Validate direct-to-Render and Vercel-to-Render header sanitization/client identity before introducing a narrow trust policy. Do not blindly set `trust proxy=true`, trust arbitrary X-Forwarded-For, increase the auth limit, or disable security checks. There is no public debug/IP endpoint in this audit.
+
+See [Phase 5.1](../docs/phase-5.1-production-readiness.md) for the complete audit, Atlas preparation, live acceptance gates and manual Git handoff. Earlier milestone statements describe historical verification; Phase 3.5/4.2 reports contain subsequent local MongoDB/browser evidence.

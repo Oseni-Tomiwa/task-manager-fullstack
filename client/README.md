@@ -4,7 +4,7 @@ Production React client integrated with the Express/MongoDB API in Phase 4.2. Re
 
 ## Local startup
 
-Use Node.js 24.10+ and pnpm 10.15.1. Client/server keep independent manifests and lockfiles; no new dependencies were needed for integration.
+Use Node.js 24 LTS (24.10+ within 24.x) and pnpm 10.15.1. The root `.nvmrc` selects the verified local 24.22.1 runtime. Client/server keep independent manifests and lockfiles; no new dependencies were needed for integration.
 
 1. Configure and start an authorized local/development MongoDB database. Never use production credentials for development or verification.
 2. In `server/`, install with `pnpm install --frozen-lockfile`, copy `.env.example` to ignored `.env`, and privately configure `MONGODB_URI` and a fresh `JWT_SECRET` (`openssl rand -hex 32`). Keep `CLIENT_ORIGIN=http://127.0.0.1:5173`, `HOST=127.0.0.1`, `PORT=3000` and `NODE_ENV=development`. Run `pnpm dev`.
@@ -55,3 +55,11 @@ Task writes are disabled while pending. Recoverable write failures retain the ed
 No deployment is included. Phase 5 must configure a fixed Vercel `/api/:path*` rewrite to Render before the SPA fallback, exact HTTPS `CLIENT_ORIGIN`, proper non-cached forwarding of Cookie/Set-Cookie/Origin/custom headers and the production Secure HttpOnly host-only cookie. Verify actual proxy trust/IP handling before changing Express trust proxy or relying on auth rate limiting. Do not add permissive CORS or third-party-cookie workarounds.
 
 See [Phase 4.2 results and Git handoff](../docs/phase-4.2-fullstack-integration.md) for actual evidence, screenshots and remaining risks.
+
+## Phase 5.1 production preparation
+
+`vercel.json.example` is an **inactive** deployment template. It is not read by Vercel until deliberately copied to `vercel.json` during separately authorized Phase 5.2. Replace its Render hostname placeholder with the verified fixed backend hostname first. No actual backend address or deployment credential is configured here.
+
+Vercel settings: Root Directory `client`, framework Vite, Node.js 24.x, output `dist`; enable `ENABLE_EXPERIMENTAL_COREPACK=1` and retain the existing `packageManager` pin. The template installs with `corepack pnpm install --frozen-lockfile` and builds with `corepack pnpm build`. API proxying precedes the SPA fallback, and the fallback explicitly excludes `/api` so API failures cannot become index.html. Filesystem assets retain normal Vercel precedence. API responses are marked no-store for browser/shared/platform caches; the API rule explicitly opts out of external rewrite caching with `x-vercel-enable-rewrite-caching: 0`. Basic response headers also cover the static frontend, which does not inherit Express Helmet headers.
+
+The only frontend build variable is public `VITE_API_BASE_URL=/api` (optional because it is the default). Do not set it to localhost or Render's direct URL. The Vite development proxy stays development-only. No production cookie, CSRF, proxy identity or cache behavior is established by the template; those require live acceptance tests. See [the production-readiness audit](../docs/phase-5.1-production-readiness.md) for the complete environment matrix, blockers and deployment order.
