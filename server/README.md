@@ -133,3 +133,37 @@ Required platform values: `NODE_ENV=production`, `HOST=0.0.0.0`, Render-supplied
 **Release blocker:** Express still deliberately trusts no proxy. Behind Render/Vercel the 10-attempt/15-minute limiter can group users by an ingress peer. Validate direct-to-Render and Vercel-to-Render header sanitization/client identity before introducing a narrow trust policy. Do not blindly set `trust proxy=true`, trust arbitrary X-Forwarded-For, increase the auth limit, or disable security checks. There is no public debug/IP endpoint in this audit.
 
 See [Phase 5.1](../docs/phase-5.1-production-readiness.md) for the complete audit, Atlas preparation, live acceptance gates and manual Git handoff. Earlier milestone statements describe historical verification; Phase 3.5/4.2 reports contain subsequent local MongoDB/browser evidence.
+
+## Temporary startup diagnostics
+
+Diagnostics are disabled by default. Only the exact value `STARTUP_DIAGNOSTICS=1`
+adds JSON events for `app`, `database_connect`, `user_init`, and `http_bind`.
+No environment file or deployment configuration enables this flag. Local approval
+covers implementation/testing only; production activation, deployment, and Atlas
+connections require separate authorization. Starting the application still performs
+its existing database connection and collection/index initialization operations.
+
+Events contain only a fixed event name, stage, result, and (on failure) a predefined
+category and optional allowlisted code. Errors, messages, stacks, hostnames,
+credentials, and operation results are never serialized by diagnostics. Existing
+ordinary startup/shutdown messages remain unchanged. Classification uses error
+names/codes, `cause`, and `reason.servers` entry errors, with limits of six nesting
+levels, 32 inspected nodes, and eight server entries per map. Cycles and throwing
+property getters are handled; logging failures do not change operation results.
+
+`database_connect` distinguishes recognized configuration, DNS, network, TLS,
+authentication, and authorization signals. Unrecognized selection failures remain
+`server_selection_unknown`; other unrecognized failures remain `unknown`. No message
+text is inspected, so some Atlas-specific authentication errors may remain unknown.
+`user_init` covers both collection creation and User index initialization: it does
+not identify the exact rejected command. Task initialization is not separately
+instrumented. Errors beyond inspection limits can remain unknown, and when several
+server errors exist the first recognized code is reported. `http_bind` failures
+always use `http_binding`, optionally with a recognized bind code. Imports and
+configuration validation happen before these diagnostic boundaries.
+
+Tests use synthetic errors and mocked database calls; no production connection is
+needed. To remove temporary diagnostics later, remove the helper and four call-site
+wrappers along with their dedicated tests. Never disable TLS validation, weaken
+network restrictions, broaden database privileges, or drop indexes/data merely to
+make startup succeed.

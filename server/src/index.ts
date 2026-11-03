@@ -1,3 +1,4 @@
+import { diagnoseApp } from "./startup-diagnostics.js";
 import { parseStartupEnv } from "./config/env.js";
 import { startServer } from "./start.js";
 import { createApp } from "./app.js";
@@ -20,7 +21,10 @@ async function main() {
     return;
   }
   try {
-    const runtime = await startServer(env, createApp(auth));
+    const runtime = await startServer(
+      env,
+      diagnoseApp(() => createApp(auth)),
+    );
     if (runtime)
       console.info(`TaskFlow API listening on ${env.HOST}:${env.PORT}`);
   } catch {

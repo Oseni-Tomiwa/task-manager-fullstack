@@ -127,3 +127,58 @@ it("does not start HTTP after shutdown is requested during database initializati
   expect(listen).not.toHaveBeenCalled();
   expect(deps.disconnect).toHaveBeenCalledTimes(1);
 });
+
+it("diagnoses index authorization failures before cleanup", async () => {
+  vi.stubEnv("STARTUP_DIAGNOSTICS", "1");
+  const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+  try {
+    deps.init.mockRejectedValueOnce({ code: 13, message: "PRIVATE_DATABASE" });
+    const app = createApp();
+    const listen = vi.spyOn(app, "listen");
+    await expect(startServer(env, app)).rejects.toThrow(
+      /^Server startup failed\.$/,
+    );
+    expect(listen).not.toHaveBeenCalled();
+    expect(deps.disconnect).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls).toEqual([
+      [
+        JSON.stringify({
+          event: "startup_diagnostic",
+          stage: "user_init",
+          result: "failed",
+          category: "authorization",
+          code: 13,
+        }),
+      ],
+    ]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+it("diagnoses successful initialization and HTTP binding failure in order", async () => {
+  vi.stubEnv("STARTUP_DIAGNOSTICS", "1");
+  const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+  try {
+    const runtime = (await startServer(env))!;
+    stop = runtime.shutdown;
+    const address = runtime.server.address();
+    if (!address || typeof address === "string") throw new Error("No address");
+    await expect(startServer({ ...env, PORT: address.port })).rejects.toThrow(
+      /^Server startup failed\.$/,
+    );
+    expect(log.mock.calls.map(([line]) => JSON.parse(line))).toEqual([
+      { event: "startup_diagnostic", stage: "user_init", result: "ok" },
+      { event: "startup_diagnostic", stage: "http_bind", result: "ok" },
+      { event: "startup_diagnostic", stage: "user_init", result: "ok" },
+      {
+        event: "startup_diagnostic",
+        stage: "http_bind",
+        result: "failed",
+        category: "http_binding",
+        code: "EADDRINUSE",
+      },
+    ]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

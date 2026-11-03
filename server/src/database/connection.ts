@@ -1,3 +1,4 @@
+import { diagnoseStartup } from "../startup-diagnostics.js";
 import mongoose from "mongoose";
 
 let opening: Promise<void> | undefined;
@@ -9,14 +10,16 @@ export async function connectDatabase(uri: string): Promise<void> {
   if (!opening) {
     opening = (async () => {
       try {
-        await mongoose.connect(uri, {
-          serverSelectionTimeoutMS: 10_000,
-          connectTimeoutMS: 10_000,
-          socketTimeoutMS: 45_000,
-          maxPoolSize: 10,
-          bufferCommands: false,
-          autoIndex: true,
-        });
+        await diagnoseStartup("database_connect", () =>
+          mongoose.connect(uri, {
+            serverSelectionTimeoutMS: 10_000,
+            connectTimeoutMS: 10_000,
+            socketTimeoutMS: 45_000,
+            maxPoolSize: 10,
+            bufferCommands: false,
+            autoIndex: true,
+          }),
+        );
       } catch {
         await mongoose.disconnect().catch(() => undefined);
         throw new Error("Database connection failed.");

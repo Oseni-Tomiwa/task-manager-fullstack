@@ -77,3 +77,32 @@ it("sanitizes cleanup failures", async () => {
     /^Database cleanup failed\.$/,
   );
 });
+
+it("diagnoses the original nested driver failure before sanitizing it", async () => {
+  vi.stubEnv("STARTUP_DIAGNOSTICS", "1");
+  const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+  try {
+    const db = await load();
+    driver.connect.mockRejectedValueOnce({
+      cause: { code: 18, message: "PRIVATE_CREDENTIAL" },
+    });
+    await expect(
+      db.connectDatabase("mongodb://example.invalid/test"),
+    ).rejects.toThrow(/^Database connection failed\.$/);
+    expect(log.mock.calls).toEqual([
+      [
+        JSON.stringify({
+          event: "startup_diagnostic",
+          stage: "database_connect",
+          result: "failed",
+          category: "authentication",
+          code: 18,
+        }),
+      ],
+    ]);
+    expect(driver.disconnect).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.unstubAllEnvs();
+    log.mockRestore();
+  }
+});

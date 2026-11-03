@@ -1,3 +1,4 @@
+import { diagnoseStartup } from "./startup-diagnostics.js";
 import type { Server } from "node:http";
 import { createApp } from "./app.js";
 import type { StartupEnv } from "./config/env.js";
@@ -53,19 +54,23 @@ export async function startServer(env: StartupEnv, app = createApp()) {
       return;
     }
     // Wait for the email unique index before accepting future writes.
-    await User.init();
+    await diagnoseStartup("user_init", () => User.init());
     if (stopping) {
       await shutdown();
       return;
     }
-    await new Promise<void>((resolve, reject) => {
-      server = app.listen(env.PORT, env.HOST);
-      server.once("error", reject);
-      server.once("listening", () => {
-        server!.off("error", reject);
-        resolve();
-      });
-    });
+    await diagnoseStartup(
+      "http_bind",
+      () =>
+        new Promise<void>((resolve, reject) => {
+          server = app.listen(env.PORT, env.HOST);
+          server.once("error", reject);
+          server.once("listening", () => {
+            server!.off("error", reject);
+            resolve();
+          });
+        }),
+    );
     server!.on("error", () => {
       console.error("HTTP server encountered an error.");
       process.exitCode = 1;
