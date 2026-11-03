@@ -52,14 +52,46 @@ Task writes are disabled while pending. Recoverable write failures retain the ed
 
 ## Deployment boundary
 
-No deployment is included. Phase 5 must configure a fixed Vercel `/api/:path*` rewrite to Render before the SPA fallback, exact HTTPS `CLIENT_ORIGIN`, proper non-cached forwarding of Cookie/Set-Cookie/Origin/custom headers and the production Secure HttpOnly host-only cookie. Verify actual proxy trust/IP handling before changing Express trust proxy or relying on auth rate limiting. Do not add permissive CORS or third-party-cookie workarounds.
+An active local `vercel.json` now prepares the fixed Vercel `/api/:path*` rewrite to Render before the SPA fallback. This change has not been deployed or verified on the hosted frontend. Production still requires exact HTTPS `CLIENT_ORIGIN`, proper non-cached forwarding of Cookie/Set-Cookie/Origin/custom headers and the production Secure HttpOnly host-only cookie. Verify actual proxy trust/IP handling before changing Express trust proxy or relying on auth rate limiting. Do not add permissive CORS or third-party-cookie workarounds.
 
 See [Phase 4.2 results and Git handoff](../docs/phase-4.2-fullstack-integration.md) for actual evidence, screenshots and remaining risks.
 
 ## Phase 5.1 production preparation
 
-`vercel.json.example` is an **inactive** deployment template. It is not read by Vercel until deliberately copied to `vercel.json` during separately authorized Phase 5.2. Replace its Render hostname placeholder with the verified fixed backend hostname first. No actual backend address or deployment credential is configured here.
+`vercel.json` is the active configuration prepared locally from the reviewed Phase 5.1 template. Its first rewrite forwards `/api/:path*` to `https://task-manager-fullstack-4wf9.onrender.com/api/:path*`. The following SPA fallback excludes `/api` and `/api/...`. `vercel.json.example` remains the inactive reusable template with its placeholder; the Phase 5.1 audit remains a historical report. No deployment was performed as part of activation.
 
-Vercel settings: Root Directory `client`, framework Vite, Node.js 24.x, output `dist`; enable `ENABLE_EXPERIMENTAL_COREPACK=1` and retain the existing `packageManager` pin. The template installs with `corepack pnpm install --frozen-lockfile` and builds with `corepack pnpm build`. API proxying precedes the SPA fallback, and the fallback explicitly excludes `/api` so API failures cannot become index.html. Filesystem assets retain normal Vercel precedence. API responses are marked no-store for browser/shared/platform caches; the API rule explicitly opts out of external rewrite caching with `x-vercel-enable-rewrite-caching: 0`. Basic response headers also cover the static frontend, which does not inherit Express Helmet headers.
+Vercel settings: Root Directory `client`, framework Vite, Node.js 24.x, output `dist`; enable `ENABLE_EXPERIMENTAL_COREPACK=1` and retain the existing `packageManager` pin. The active configuration installs with `corepack pnpm install --frozen-lockfile` and builds with `corepack pnpm build`. API proxying precedes the SPA fallback, and the fallback explicitly excludes `/api` so API failures cannot become index.html. Filesystem assets retain normal Vercel precedence. API responses are marked no-store for browser/shared/platform caches; the API rule explicitly opts out of external rewrite caching with `x-vercel-enable-rewrite-caching: 0`. Basic response headers also cover the static frontend, which does not inherit Express Helmet headers.
 
-The only frontend build variable is public `VITE_API_BASE_URL=/api` (optional because it is the default). Do not set it to localhost or Render's direct URL. The Vite development proxy stays development-only. No production cookie, CSRF, proxy identity or cache behavior is established by the template; those require live acceptance tests. See [the production-readiness audit](../docs/phase-5.1-production-readiness.md) for the complete environment matrix, blockers and deployment order.
+The only frontend build variable is public `VITE_API_BASE_URL=/api` (optional because it is the default). Do not set it to localhost or Render's direct URL. The Vite development proxy stays development-only. The canonical frontend is `https://task-manager-fullstack-vert-five.vercel.app`; Render's `CLIENT_ORIGIN` must match that exact origin. Other preview origins are intentionally not authorized. No production cookie, CSRF, proxy identity or cache behavior is established by local configuration validation; those require live acceptance tests. See [the production-readiness audit](../docs/phase-5.1-production-readiness.md) for the complete environment matrix, blockers and deployment order.
+
+### Hosted acceptance still required
+
+After separately authorized deployment, verify the canonical frontend's `/api/health`
+and unknown API path return API JSON/statuses, and refresh `/login`, `/register`,
+and `/dashboard` to verify SPA routing. Verify query strings and non-GET methods
+reach the corresponding Render API endpoints. A local Vite build or preview does
+not execute Vercel rewrites.
+
+With an authorized test account, check login and reload restoration, forwarded
+Cookie/Set-Cookie, and the production host-only `__Host-taskflow` cookie with Secure,
+HttpOnly, SameSite=Lax and Path=/. Do not copy cookie values or tokens into logs.
+Confirm logout expires that same cookie and protected reads are rejected afterward.
+Logout and task DELETE requests retain JSON `{}`; all mutations retain the browser's
+original Origin, `X-TaskFlow-Request: 1` and JSON content type. Missing/hostile Origin
+or missing security headers must be rejected without writes. Do not rewrite Origin,
+add permissive CORS, or change cookie security settings to pass acceptance.
+
+Verify effective no-store behavior on authenticated and error responses, no cached
+Set-Cookie, and no personalized response reuse across accounts. Some CDN control
+headers may be consumed by Vercel rather than exposed to the browser. Configuration
+alone does not prove hosted cache behavior. External rewrite caching remains
+explicitly disabled; see [Vercel's documented opt-out](https://vercel.com/docs/routing/rewrites#disabling-caching-for-rewrites-to-external-origins).
+
+Express proxy trust remains at its default false setting. The 10-attempt/15-minute
+login/register limiter can group users by an ingress peer behind Render/Vercel.
+Verify independent client budgets and spoofed forwarding-header handling through
+both direct and proxied paths before public acceptance. This remains a release
+blocker; resolving it requires separate evidence and review. Render cold starts,
+stateless JWT logout limitations, and liveness-only health also remain operational
+considerations. No backend authentication, proxy trust, or database changes are
+included in this configuration activation.
