@@ -137,14 +137,20 @@ See [Phase 5.1](../docs/phase-5.1-production-readiness.md) for the complete audi
 ## Temporary startup diagnostics
 
 Diagnostics are disabled by default. Only the exact value `STARTUP_DIAGNOSTICS=1`
-adds JSON events for `app`, `database_connect`, `user_init`, and `http_bind`.
+adds JSON events for `app`, `database_connect`, `database_selection`, `user_init`,
+`user_collection`, `user_email_index`, and `http_bind`.
 No environment file or deployment configuration enables this flag. Local approval
 covers implementation/testing only; production activation, deployment, and Atlas
 connections require separate authorization. Starting the application still performs
 its existing database connection and collection/index initialization operations.
 
-Events contain only a fixed event name, stage, result, and (on failure) a predefined
-category and optional allowlisted code. Errors, messages, stacks, hostnames,
+Operation events contain only a fixed event name, stage, result (`started`, `ok`,
+or `failed`), and (on failure) a predefined category and optional allowlisted code.
+The `database_selection` event instead contains only the fixed event/stage fields
+and `database_matches_expected`, a boolean comparing the selected database with
+`taskflow` after connection succeeds. It never includes either database name or a
+connection string. It reports a mismatch without changing the selected database
+or failing startup. Errors, messages, stacks, hostnames,
 credentials, and operation results are never serialized by diagnostics. Existing
 ordinary startup/shutdown messages remain unchanged. Classification uses error
 names/codes, `cause`, and `reason.servers` entry errors, with limits of six nesting
@@ -154,16 +160,31 @@ property getters are handled; logging failures do not change operation results.
 `database_connect` distinguishes recognized configuration, DNS, network, TLS,
 authentication, and authorization signals. Unrecognized selection failures remain
 `server_selection_unknown`; other unrecognized failures remain `unknown`. No message
-text is inspected, so some Atlas-specific authentication errors may remain unknown.
-`user_init` covers both collection creation and User index initialization: it does
-not identify the exact rejected command. Task initialization is not separately
-instrumented. Errors beyond inspection limits can remain unknown, and when several
+text is inspected. Code `8000` reports `atlas_rejection_unknown`, which does not
+establish authentication, authorization, or a tier limitation. Code `48`, when it
+reaches classification, reports `existing_collection` without changing error handling.
+
+User collection middleware is installed before model compilation. Index listeners
+are attached once per model from the schema's `init` event, before automatic index
+initialization. `user_collection` and `user_email_index` emit `started` followed by
+`ok` or `failed`; payloads such as collection/index names and options are ignored.
+Mongoose handles a normal `MongoServerError` code `48` internally, so that existing
+collection outcome reports collection `ok` without a code. An `ok` event means the
+initialization step succeeded, not necessarily that a new object was created.
+The schema currently declares exactly one index, the unique email index; review
+this fixed event label if more User indexes are added. `user_init` remains the
+overall boundary. Task initialization is not separately instrumented. Collection
+and index events may precede the connection success/database-match events because
+Mongoose automatically initializes models; only collection-before-index order is
+guaranteed for User initialization. Errors beyond inspection limits can remain unknown, and when several
 server errors exist the first recognized code is reported. `http_bind` failures
 always use `http_binding`, optionally with a recognized bind code. Imports and
 configuration validation happen before these diagnostic boundaries.
 
 Tests use synthetic errors and mocked database calls; no production connection is
-needed. To remove temporary diagnostics later, remove the helper and four call-site
-wrappers along with their dedicated tests. Never disable TLS validation, weaken
+needed. Initialization tests run the actual schema and Mongoose pipeline with
+in-memory database substitutes, without sending database commands. To remove
+temporary diagnostics later, remove the helper, call-site wrappers, database-match
+check, and User middleware/listeners along with their dedicated tests. Never disable TLS validation, weaken
 network restrictions, broaden database privileges, or drop indexes/data merely to
 make startup succeed.

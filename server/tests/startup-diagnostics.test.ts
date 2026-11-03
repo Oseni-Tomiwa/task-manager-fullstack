@@ -211,3 +211,80 @@ it("does not inspect errors when disabled", async () => {
   ).rejects.toBe(error);
   expect(access).not.toHaveBeenCalled();
 });
+
+it.each([
+  [48, "existing_collection"],
+  [8000, "atlas_rejection_unknown"],
+] as const)(
+  "recognizes additional code %s without guessing its cause",
+  async (code, category) => {
+    const log = enable();
+    await expect(
+      diagnoseStartup("user_init", async () => {
+        throw { code, message: "PRIVATE" };
+      }),
+    ).rejects.toEqual({ code, message: "PRIVATE" });
+    expect(JSON.parse(log.mock.calls[0]![0])).toEqual({
+      event: "startup_diagnostic",
+      stage: "user_init",
+      result: "failed",
+      category,
+      code,
+    });
+  },
+);
+
+it.each([undefined, "0", "true", " 1", "1 "])(
+  "keeps all refinement events silent for flag %s",
+  async (flag) => {
+    const { recordStartup, diagnoseDatabaseSelection } =
+      await import("../src/startup-diagnostics.js");
+    vi.stubEnv("STARTUP_DIAGNOSTICS", flag);
+    const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const access = vi.fn();
+    recordStartup("user_collection", "failed", new Proxy({}, { get: access }));
+    recordStartup("user_email_index", "started");
+    diagnoseDatabaseSelection("PRIVATE_DATABASE_URI_TOKEN");
+    expect(log).not.toHaveBeenCalled();
+    expect(access).not.toHaveBeenCalled();
+  },
+);
+it.each([
+  ["taskflow", true],
+  ["PRIVATE_DATABASE_URI_TOKEN", false],
+  [undefined, false],
+] as const)(
+  "emits only the database-match boolean",
+  async (database, matches) => {
+    const { diagnoseDatabaseSelection } =
+      await import("../src/startup-diagnostics.js");
+    const log = enable();
+    diagnoseDatabaseSelection(database);
+    expect(log.mock.calls).toEqual([
+      [
+        JSON.stringify({
+          event: "startup_diagnostic",
+          stage: "database_selection",
+          database_matches_expected: matches,
+        }),
+      ],
+    ]);
+  },
+);
+it("cannot coerce the selected database or propagate a logger failure", async () => {
+  const { diagnoseDatabaseSelection } =
+    await import("../src/startup-diagnostics.js");
+  const log = enable();
+  const coercion = vi.fn(() => {
+    throw new Error("PRIVATE");
+  });
+  diagnoseDatabaseSelection({ toString: coercion });
+  expect(coercion).not.toHaveBeenCalled();
+  expect(JSON.parse(log.mock.calls[0]![0]).database_matches_expected).toBe(
+    false,
+  );
+  log.mockImplementation(() => {
+    throw new Error("PRIVATE");
+  });
+  expect(() => diagnoseDatabaseSelection("taskflow")).not.toThrow();
+});

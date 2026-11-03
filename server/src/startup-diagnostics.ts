@@ -1,8 +1,16 @@
-type Stage = "app" | "database_connect" | "user_init" | "http_bind";
+type Stage =
+  | "app"
+  | "database_connect"
+  | "user_init"
+  | "user_collection"
+  | "user_email_index"
+  | "http_bind";
 type Classification = { category: string; code?: string | number };
 
 const codes = new Map<string | number, string>([
   [18, "authentication"],
+  [48, "existing_collection"],
+  [8000, "atlas_rejection_unknown"],
   [13, "authorization"],
   [11000, "duplicate_key"],
   [85, "index_conflict"],
@@ -99,7 +107,11 @@ function classify(stage: Stage, error: unknown): Classification {
   }
   return { category: fallback };
 }
-function emit(stage: Stage, result: "ok" | "failed", error?: unknown) {
+export function recordStartup(
+  stage: Stage,
+  result: "started" | "ok" | "failed",
+  error?: unknown,
+) {
   if (process.env.STARTUP_DIAGNOSTICS !== "1") return;
   try {
     console.info(
@@ -121,10 +133,10 @@ export async function diagnoseStartup<T>(
 ): Promise<T> {
   try {
     const result = await operation();
-    emit(stage, "ok");
+    recordStartup(stage, "ok");
     return result;
   } catch (error) {
-    emit(stage, "failed", error);
+    recordStartup(stage, "failed", error);
     throw error;
   }
 }
@@ -132,10 +144,25 @@ export async function diagnoseStartup<T>(
 export function diagnoseApp<T>(operation: () => T): T {
   try {
     const result = operation();
-    emit("app", "ok");
+    recordStartup("app", "ok");
     return result;
   } catch (error) {
-    emit("app", "failed", error);
+    recordStartup("app", "failed", error);
     throw error;
+  }
+}
+
+export function diagnoseDatabaseSelection(selectedDatabase: unknown): void {
+  if (process.env.STARTUP_DIAGNOSTICS !== "1") return;
+  try {
+    console.info(
+      JSON.stringify({
+        event: "startup_diagnostic",
+        stage: "database_selection",
+        database_matches_expected: selectedDatabase === "taskflow",
+      }),
+    );
+  } catch {
+    /* Diagnostics must not affect startup or cleanup. */
   }
 }

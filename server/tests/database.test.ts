@@ -106,3 +106,29 @@ it("diagnoses the original nested driver failure before sanitizing it", async ()
     log.mockRestore();
   }
 });
+
+it("reports selected database after successful connect exactly once for concurrent callers", async () => {
+  vi.stubEnv("STARTUP_DIAGNOSTICS", "1");
+  const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+  const connection = driver.connection as { readyState: number; name?: string };
+  try {
+    connection.name = "taskflow";
+    const db = await load();
+    await Promise.all([
+      db.connectDatabase("mongodb://example.invalid/test"),
+      db.connectDatabase("mongodb://example.invalid/test"),
+    ]);
+    expect(log.mock.calls.map(([line]) => JSON.parse(line))).toEqual([
+      { event: "startup_diagnostic", stage: "database_connect", result: "ok" },
+      {
+        event: "startup_diagnostic",
+        stage: "database_selection",
+        database_matches_expected: true,
+      },
+    ]);
+  } finally {
+    delete connection.name;
+    vi.unstubAllEnvs();
+    log.mockRestore();
+  }
+});

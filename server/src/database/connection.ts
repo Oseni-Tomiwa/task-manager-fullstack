@@ -1,4 +1,7 @@
-import { diagnoseStartup } from "../startup-diagnostics.js";
+import {
+  diagnoseStartup,
+  diagnoseDatabaseSelection,
+} from "../startup-diagnostics.js";
 import mongoose from "mongoose";
 
 let opening: Promise<void> | undefined;
@@ -20,6 +23,7 @@ export async function connectDatabase(uri: string): Promise<void> {
             autoIndex: true,
           }),
         );
+        diagnoseDatabaseSelection(mongoose.connection.name);
       } catch {
         await mongoose.disconnect().catch(() => undefined);
         throw new Error("Database connection failed.");
