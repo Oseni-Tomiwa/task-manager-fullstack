@@ -309,11 +309,32 @@ it("retains task form values after failed save, blocks dismissal while pending a
   expect(within(dialog).getByLabelText(/Description/)).toHaveValue(
     "My unsaved context",
   );
+  // Hold the list refresh separately from the successful write, without timers.
+  const refreshed = deferred<Response>();
+  http.state.override = (path, init) =>
+    path.startsWith("/api/tasks?") && init.method === "GET"
+      ? refreshed.promise
+      : undefined;
   await user.click(within(dialog).getByRole("button", { name: "Create task" }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
-  expect(screen.getByText("Keep these changes")).toBeInTheDocument();
+  expect(
+    http.state.tasks.filter((task) => task.title === "Keep these changes"),
+  ).toHaveLength(1);
+  expect(screen.queryByText("Keep these changes")).not.toBeInTheDocument();
+  refreshed.resolve(
+    json({
+      data: { tasks: http.state.tasks.slice(0, 6) },
+      meta: {
+        page: 1,
+        limit: 6,
+        total: http.state.tasks.length,
+        totalPages: Math.ceil(http.state.tasks.length / 6),
+      },
+    }),
+  );
+  expect(await screen.findByText("Keep these changes")).toBeInTheDocument();
 });
 it("preserves a task after failed deletion and allows a safe retry", async () => {
   let failed = false;
