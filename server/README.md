@@ -1,4 +1,4 @@
-# TaskFlow server — Phase 4.2
+# TaskFlow server
 
 Express/TypeScript backend with MongoDB lifecycle, a typed User model and cookie-based JWT authentication. Authenticated owner-scoped task CRUD, search, status filters and pagination are implemented.
 
@@ -44,7 +44,7 @@ Build before using start. dev/start load an optional `.env` using Node's built-i
 
 Validation errors show field names, never values. Real `.env` and `.env.*` files are ignored; `.env.example` contains only non-secret defaults. MONGODB_URI is optional in parseEnv() so standalone configuration and health tests remain independent; parseStartupEnv() requires it. Invalid supplied URIs are rejected even in parseEnv(). URI validation constructs a driver client to parse syntax only; it opens no connection or DNS request. The entry point separately requires a validated JWT_SECRET and CLIENT_ORIGIN through parseAuthEnv().
 
-For a later hosting milestone, explicitly set HOST=0.0.0.0 and NODE_ENV=production and use the platform-supplied PORT. The local default deliberately binds loopback. No hosting configuration or deployment is provided here.
+The local default binds to loopback. For the production host, follow the [deployment settings](#render-deployment).
 
 ## Structure and behavior
 
@@ -59,11 +59,9 @@ For a later hosting milestone, explicitly set HOST=0.0.0.0 and NODE_ENV=producti
 
 Error envelope: `{error:{code,message}}`. Unknown routes return 404 NOT_FOUND; malformed JSON 400 INVALID_JSON; oversized JSON 413 PAYLOAD_TOO_LARGE; unsupported encoding 415 UNSUPPORTED_ENCODING; unexpected failures 500 INTERNAL_ERROR. JSON parsing occurs before route resolution. Non-JSON bodies are not consumed as JSON; future route-level content-type validation is deferred until mutation endpoints exist. Trust proxy remains Express's default false. No CORS middleware or allow-origin response headers are enabled.
 
-## Anticipated proxy/authentication architecture
+## Same-origin proxy and authentication
 
-A later Vercel client will call relative `/api` paths, proxied to Render while keeping browser requests same-origin. See ../docs/authentication-decision.md for the proposed HttpOnly/Secure/SameSite cookie JWT strategy, exact Origin and custom-header CSRF controls, expiration/logout behavior and required deployment checks. Cookie authentication, exact-Origin/custom-header CSRF controls and auth routes are now implemented. The same-origin proxy and hosting configuration remain unimplemented and unverified. No permissive CORS middleware is enabled. Do not treat the absence of CORS as authentication or access control. Client integration and mutation-route security must be added in their authorized milestones.
-
-No repository/service layers, refresh-token infrastructure, deployment manifests or production frontend were added. The approved prototype is independent and unchanged.
+The Vercel frontend calls relative `/api` paths. The active rewrite in [client/vercel.json](../client/vercel.json) forwards those requests to Render while keeping browser requests same-origin. See the [client deployment guide](../client/README.md) and the [authentication decision](../docs/authentication-decision.md) for the rewrite, cookie settings, session expiry, and exact-Origin, custom-header, and JSON checks on mutations. The API uses no CORS middleware.
 
 ## Database use and limitations
 
@@ -120,19 +118,15 @@ For local integration, start the backend on `127.0.0.1:3000` with exact `CLIENT_
 
 Routine tests use mocked persistence boundaries. `pnpm test:integration` explicitly selects the real local MongoDB suite (see [Phase 3.5](../docs/phase-3.5-integration.md)); missing/unsafe dedicated configuration fails rather than skipping. No Atlas access is required or authorized by the verification command.
 
-Vercel/Render API rewriting, TLS cookie behavior and trusted proxy/IP configuration remain deployment gates, not locally verified production behavior. Stateless JWT logout clears the browser cookie but cannot revoke a previously copied JWT before its 30-minute expiry.
+Stateless JWT logout clears the browser cookie. A previously copied JWT remains valid until its 30-minute expiry.
 
-## Phase 5.1 Render preparation
+## Render deployment
 
-No Render service or Atlas resource has been created. For a later authorized Render Web Service, choose Node runtime and Root Directory `server`. The `.node-version` file and bounded package engine keep the service on Node 24; a platform `NODE_VERSION` override takes precedence and must agree.
+The production backend uses a Render Node Web Service with root directory `server`. Use the [repository deployment settings](../README.md#deployment-configuration-and-reliability) for the build and start commands, runtime, and health check. The [deployment preparation guide](../docs/phase-5.2a-deployment-preparation.md) covers Atlas access, secret handling, and the rollout sequence.
 
-Build command: `corepack pnpm install --frozen-lockfile --prod=false && corepack pnpm build`. TypeScript is a dev dependency, so installation must include dev dependencies even when `NODE_ENV=production`. Start command: `node dist/index.js`; this runs the existing production entry point directly with platform environment values, without needing a local `.env` file or package-manager activation at runtime. Keep pnpm 10.15.1 from `packageManager`; confirm Node/pnpm versions in build logs. Do not bypass package-manager signature verification or globally enable all dependency install scripts to work around a build failure. Native bcrypt availability still needs Linux hosting verification.
+Set `NODE_ENV=production`, `HOST=0.0.0.0`, and the exact canonical HTTPS `CLIENT_ORIGIN`. Use Render's supplied `PORT`. Store `MONGODB_URI` and the 64-hex `JWT_SECRET` privately in Render.
 
-Required platform values: `NODE_ENV=production`, `HOST=0.0.0.0`, Render-supplied `PORT`, private `MONGODB_URI`, private 64-hex `JWT_SECRET`, and exact canonical HTTPS `CLIENT_ORIGIN`. Use `/api/health` as the HTTP health path: it is liveness, not a continuous database readiness probe. Startup connects and initializes User indexes before listening. Existing SIGTERM draining has a 10-second deadline; verify the host delivers the signal and grants enough shutdown time.
-
-**Release blocker:** Express still deliberately trusts no proxy. Behind Render/Vercel the 10-attempt/15-minute limiter can group users by an ingress peer. Validate direct-to-Render and Vercel-to-Render header sanitization/client identity before introducing a narrow trust policy. Do not blindly set `trust proxy=true`, trust arbitrary X-Forwarded-For, increase the auth limit, or disable security checks. There is no public debug/IP endpoint in this audit.
-
-See [Phase 5.1](../docs/phase-5.1-production-readiness.md) for the complete audit, Atlas preparation, live acceptance gates and manual Git handoff. Earlier milestone statements describe historical verification; Phase 3.5/4.2 reports contain subsequent local MongoDB/browser evidence.
+Express still trusts no proxy. Behind Render and Vercel, the shared 10-attempt/15-minute authentication limiter can group users by ingress peer. See the [release hardening report](../docs/phase-5.3.1-release-hardening.md) for the open client-identity and spoof-resistance checks.
 
 ## Temporary startup diagnostics
 
