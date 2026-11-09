@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { AuthPage } from "./pages/AuthPage";
 import { Dashboard } from "./pages/Dashboard";
+import { Profile } from "./pages/Profile";
 import { useSession } from "./auth/useSession";
 import type { RegisterInput } from "./api/contracts";
 import "./styles.css";
@@ -26,7 +27,7 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   useEffect(() => {
-    document.title = `TaskFlow — ${location.pathname === "/dashboard" ? "Your workspace" : location.pathname === "/register" ? "Create an account" : "Sign in"}`;
+    document.title = `TaskFlow — ${location.pathname === "/dashboard" ? "Your workspace" : location.pathname === "/profile" ? "Profile" : location.pathname === "/register" ? "Create an account" : "Sign in"}`;
     const heading =
       document.querySelector<HTMLElement>(".auth-form h2") ??
       document.querySelector<HTMLElement>("h1");
@@ -92,6 +93,20 @@ export default function App() {
                 key={`${user.id}:${epoch}`}
                 api={api}
                 name={user.name}
+                logout={logout}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            user ? (
+              <Profile
+                key={`${user.id}:${epoch}`}
+                user={user}
                 logout={logout}
               />
             ) : (

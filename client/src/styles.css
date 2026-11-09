@@ -152,11 +152,25 @@ a:hover {
   padding: 0 32px;
   gap: 26px;
 }
-.workspace-label {
-  font-size: 12px;
-  border-left: 1px solid var(--border);
-  padding-left: 26px;
-  color: var(--muted);
+.workspace-nav {
+  display: flex;
+  gap: 4px;
+}
+.workspace-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: #50576b;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 650;
+}
+.workspace-nav a:hover,
+.workspace-nav a[aria-current="page"] {
+  background: #eeedfd;
+  color: #4238a8;
 }
 .account {
   display: flex;
@@ -923,10 +937,14 @@ small {
     font-size: 10px;
   }
   .header-inner {
-    height: 68px;
-    padding: 0 18px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 10px 18px 8px;
   }
-  .workspace-label,
+  .header-inner > .brand {
+    flex-basis: 100%;
+  }
   .account-name {
     display: none;
   }
@@ -1182,4 +1200,71 @@ small {
   margin: 0;
   padding: 12px 24px;
   text-align: center;
+}
+
+.profile {
+  padding-bottom: 32px;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.profile-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.profile-card h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: #f6f5ff;
+}
+.profile-identity .avatar {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.profile-card dl {
+  margin: 0;
+}
+.profile-card dt {
+  font-size: 14px;
+  font-weight: 650;
+}
+.profile-card dd {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f7f8fc;
+}
+.profile-card dd + dt {
+  margin-top: 14px;
+}
+.profile-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.profile-error {
+  margin-bottom: 16px;
+}
+@media (max-width: 690px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .profile-card {
+    padding: 17px;
+  }
 }

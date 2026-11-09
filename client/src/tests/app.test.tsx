@@ -708,3 +708,99 @@ it("does not restore stale summary data after logout and another session", async
   expect(screen.queryByText("999")).not.toBeInTheDocument();
   expect(screen.getByText("A clear space. A fresh start.")).toBeInTheDocument();
 });
+
+it("guards a direct Profile visit without a session", async () => {
+  open("/profile");
+  expect(
+    await screen.findByRole("heading", { name: "Welcome back." }),
+  ).toHaveFocus();
+  expect(
+    screen.queryByRole("heading", { name: "Profile" }),
+  ).not.toBeInTheDocument();
+});
+
+it("restores Profile details and navigates by keyboard without refetching the account", async () => {
+  const pending = deferred<Response>();
+  http.state.user = testUser;
+  http.state.override = (path) =>
+    path === "/api/auth/me" ? pending.promise : undefined;
+  open("/profile");
+  expect(screen.getByRole("status")).toHaveTextContent(
+    /restoring your session/i,
+  );
+  expect(screen.queryByText(testUser.email)).not.toBeInTheDocument();
+  pending.resolve(json({ data: { user: testUser } }));
+  expect(await screen.findByRole("heading", { name: "Profile" })).toHaveFocus();
+  const profile = screen.getByRole("main");
+  expect(within(profile).getAllByText(testUser.name).length).toBeGreaterThan(0);
+  expect(within(profile).getByText(testUser.email)).toBeInTheDocument();
+  expect(profile.querySelector("time")).toHaveAttribute(
+    "datetime",
+    testUser.createdAt,
+  );
+  expect(within(profile).queryByRole("textbox")).not.toBeInTheDocument();
+
+  const keyboard = userEvent.setup();
+  screen.getByRole("link", { name: "Dashboard" }).focus();
+  await keyboard.keyboard("{Enter}");
+  expect(
+    await screen.findByRole("heading", { name: /Let’s make progress/ }),
+  ).toHaveFocus();
+  await screen.findByRole("list", { name: "Tasks" });
+  await keyboard.click(screen.getByRole("link", { name: "Profile" }));
+  expect(await screen.findByRole("heading", { name: "Profile" })).toHaveFocus();
+  expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(
+    http.transport.mock.calls.filter(([path]) => path === "/api/auth/me"),
+  ).toHaveLength(1);
+});
+
+it("recovers from a Profile session error and labels unavailable details", async () => {
+  http.state.user = { ...testUser, name: "", email: "", createdAt: "invalid" };
+  http.state.override = (path) =>
+    path === "/api/auth/me" ? failure(503) : undefined;
+  open("/profile");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    /restore your session/i,
+  );
+  http.state.override = undefined;
+  await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByRole("heading", { name: "Profile" });
+  expect(
+    within(screen.getByRole("main")).getAllByText("Unavailable"),
+  ).toHaveLength(3);
+});
+
+it("retains Profile on logout failure and clears it after retry", async () => {
+  http.state.user = testUser;
+  open("/profile");
+  await screen.findByRole("heading", { name: "Profile" });
+  http.state.override = (path) =>
+    path === "/api/auth/logout"
+      ? failure(503, "Logout unavailable. Try again.")
+      : undefined;
+  await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Logout unavailable",
+  );
+  expect(screen.getByText(testUser.email)).toBeInTheDocument();
+  http.state.override = undefined;
+  await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+  await screen.findByRole("heading", { name: "Welcome back." });
+  expect(screen.queryByText(testUser.email)).not.toBeInTheDocument();
+});
+
+it("clears Profile details when the next protected request detects expiration", async () => {
+  http.state.user = testUser;
+  open("/profile");
+  await screen.findByRole("heading", { name: "Profile" });
+  http.state.override = (path) =>
+    path.startsWith("/api/tasks") ? failure(401) : undefined;
+  await userEvent.click(screen.getByRole("link", { name: "Dashboard" }));
+  await screen.findByRole("heading", { name: "Welcome back." });
+  expect(screen.getByRole("alert")).toHaveTextContent(/session.*expired/i);
+  expect(screen.queryByText(testUser.email)).not.toBeInTheDocument();
+});

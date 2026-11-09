@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import type { Task, TaskStatus } from "../api/contracts";
 import { useTasks, PAGE_SIZE } from "../tasks/useTasks";
 import type { createApiClient } from "../api/client";
-import { ActionButton } from "../components/ActionButton";
-import { Brand } from "../components/Brand";
+import { useLogout } from "../auth/useLogout";
+import { WorkspaceHeader } from "../components/WorkspaceHeader";
 import { Modal } from "../components/Modal";
 import { TaskForm } from "../components/TaskForm";
 import { TaskList } from "../components/TaskList";
@@ -43,8 +43,7 @@ export function Dashboard({
     toggle,
     remove,
   } = useTasks(api, query, status, page, setPage);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const busy = saving || loggingOut;
+  const { busy, signOut } = useLogout(logout, setError, saving);
   const focusAfterLoad = useRef<{
     trigger: Element | null;
     taskId?: string;
@@ -66,22 +65,6 @@ export function Dashboard({
       : undefined;
     (toggle ?? document.getElementById("tasks-heading"))?.focus();
   }, [mode, busy, tasks]);
-  async function signOut() {
-    if (busy) return;
-    setLoggingOut(true);
-    setError("");
-    try {
-      await logout();
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "We couldn’t log you out. Please try again.",
-      );
-    } finally {
-      setLoggingOut(false);
-    }
-  }
   async function complete(task: Task) {
     focusAfterLoad.current = {
       trigger: document.activeElement,
@@ -130,26 +113,11 @@ export function Dashboard({
   }
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div className="header-inner">
-          <Brand />
-          <span className="workspace-label">Personal workspace</span>
-          <div className="account">
-            <span className="avatar" aria-hidden="true">
-              {name.slice(0, 1).toUpperCase()}
-            </span>
-            <span className="account-name">{name}</span>
-            <ActionButton
-              label="Log out"
-              tooltip="Log out"
-              onClick={() => void signOut()}
-              disabled={busy}
-            >
-              <LogOut size={18} />
-            </ActionButton>
-          </div>
-        </div>
-      </header>
+      <WorkspaceHeader
+        name={name}
+        busy={busy}
+        onLogout={() => void signOut()}
+      />
       <main className="dashboard" id="main-content">
         <div className="page-heading">
           <div>
