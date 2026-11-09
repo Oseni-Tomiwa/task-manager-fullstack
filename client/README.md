@@ -1,6 +1,6 @@
 # TaskFlow client
 
-Production React client integrated with the Express/MongoDB API in Phase 4.2. Registration, login, restored sessions and tasks use the real API. The approved `prototype/` remains separate and unchanged. There are no preview credentials, fixtures or browser token storage in this app.
+Production React client integrated with the Express/MongoDB API in Phase 4.2. Registration, login, restored sessions and tasks use the real API. The protected Profile page displays read-only account details from the existing session response. Profile verification used local tests and browser fixtures. Hosted Profile acceptance remains pending. The approved `prototype/` remains separate and unchanged. There are no preview credentials, fixtures or browser token storage in this app.
 
 ## Local startup
 
@@ -50,15 +50,11 @@ An HttpOnly cookie carries a 30-minute JWT. No localStorage/sessionStorage token
 
 Task writes are disabled while pending. Recoverable write failures retain the edit form/delete confirmation; read failures show retry. Summary failures do not fabricate zeros or hide an independently successful list. Failed refresh after a successful write shows both truthful success feedback and a separate load-retry state.
 
-## Deployment boundary
+## Vercel deployment
 
-An active local `vercel.json` now prepares the fixed Vercel `/api/:path*` rewrite to Render before the SPA fallback. This change has not been deployed or verified on the hosted frontend. Production still requires exact HTTPS `CLIENT_ORIGIN`, proper non-cached forwarding of Cookie/Set-Cookie/Origin/custom headers and the production Secure HttpOnly host-only cookie. Verify actual proxy trust/IP handling before changing Express trust proxy or relying on auth rate limiting. Do not add permissive CORS or third-party-cookie workarounds.
+[Vercel configuration](vercel.json) is active. Its first rewrite sends `/api/:path*` to the fixed Render API, before the SPA fallback. [The example](vercel.json.example) is an inactive historical template with a placeholder upstream. The production-readiness audit records the earlier rollout plan.
 
-See [Phase 4.2 results and Git handoff](../docs/phase-4.2-fullstack-integration.md) for actual evidence, screenshots and remaining risks.
-
-## Phase 5.1 production preparation
-
-`vercel.json` is the active configuration prepared locally from the reviewed Phase 5.1 template. Its first rewrite forwards `/api/:path*` to `https://task-manager-fullstack-4wf9.onrender.com/api/:path*`. The following SPA fallback excludes `/api` and `/api/...`. `vercel.json.example` remains the inactive reusable template with its placeholder; the Phase 5.1 audit remains a historical report. No deployment was performed as part of activation.
+See [Phase 4.2 verification](../docs/phase-4.2-fullstack-integration.md) for local evidence, screenshots, and integration risks.
 
 Vercel settings: Root Directory `client`, framework Vite, Node.js 24.x, output `dist`; enable `ENABLE_EXPERIMENTAL_COREPACK=1` and retain the existing `packageManager` pin. The active configuration installs with `corepack pnpm install --frozen-lockfile` and builds with `corepack pnpm build`. API proxying precedes the SPA fallback, and the fallback explicitly excludes `/api` so API failures cannot become index.html. Filesystem assets retain normal Vercel precedence. API responses are marked no-store for browser/shared/platform caches; the API rule explicitly opts out of external rewrite caching with `x-vercel-enable-rewrite-caching: 0`. Basic response headers also cover the static frontend, which does not inherit Express Helmet headers.
 

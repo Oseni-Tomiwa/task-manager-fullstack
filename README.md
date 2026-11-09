@@ -13,6 +13,8 @@ TaskFlow is a deployed full-stack task manager for the AppRo8 Full Stack Develop
 
 Register an account, sign in and return to your session after refresh. Create, view, edit, complete/reopen and delete your own tasks. Search task titles, filter by status and paginate the list. Global summary counters describe all your tasks independently of the active list filter. Forms and lists include loading, empty, validation, retry, error and success states; failed writes retain inputs.
 
+The client includes a protected read-only Profile with the signed-in user's display name, email address, and member-since date. Profile was verified locally with client tests and browser fixtures. Hosted acceptance of Profile remains pending.
+
 The dashboard uses responsive layouts, labeled controls, visible keyboard focus and focus-managed dialogs. Fresh production viewport/keyboard verification remains a documented acceptance requirement. Production statuses are `todo`, `in_progress` and `completed`.
 
 Open the canonical frontend to register your own account. There are no shared production demo credentials. Public registration is intended for reviewers; never put reusable production credentials in this README. The separate prototype's mock credentials do not authenticate against the deployed API.
@@ -141,7 +143,6 @@ Reviewers can access the public source and canonical frontend and register their
 - [Phase 4.1 frontend](docs/phase-4.1-frontend.md), [4.2 full-stack verification](docs/phase-4.2-fullstack-integration.md)
 - [Phase 5.1 readiness audit](docs/phase-5.1-production-readiness.md), [5.2A Node 24/deployment preparation](docs/phase-5.2a-deployment-preparation.md)
 - [Phase 5.3 production QA](docs/phase-5.3-production-qa.md), [5.3.1 release hardening and controlled acceptance plan](docs/phase-5.3.1-release-hardening.md)
-- [Historical manual prototype Git handoff](docs/git-handoff/README.md)
 
 The approved isolated prototype is retained under `prototype/`. Its own `pnpm dev` serves a mock-only playground with synthetic credentials and resets data on reload; it does not call the production API. Do not run it on the integrated frontend's occupied port.
 

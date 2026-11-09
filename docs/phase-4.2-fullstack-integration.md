@@ -6,7 +6,7 @@ Verified locally November 1, 2026. No deployment or Phase 5 implementation.
 
 Phase 4.1 was committed and pushed at `30c5e48757399974eb2c0797da3ae6e37f3a8159`. Local main, origin/main and a fresh read-only GitHub main lookup matched; the working tree was clean. Existing backend **176/176** and frontend **22/22** tests passed before implementation. Sandbox filesystem/network failures were rerun with required permissions, not treated as application failures.
 
-The user approved [the design](superpowers/specs/2026-10-31-fullstack-integration-design.md) and requested [an implementation plan](superpowers/plans/2026-10-31-fullstack-integration.md), followed by incremental execution. Work used an isolated file-only scratch copy, with only intended files copied back for final checks; no Git worktree/branch/staging/commit operation was performed. The prototype remains unchanged.
+The user approved [the design](https://github.com/Oseni-Tomiwa/task-manager-fullstack/blob/19dd11f93d79b7a7ae05414c042bbbe32882266c/docs/superpowers/specs/2026-10-31-fullstack-integration-design.md) and requested [an implementation plan](https://github.com/Oseni-Tomiwa/task-manager-fullstack/blob/19dd11f93d79b7a7ae05414c042bbbe32882266c/docs/superpowers/plans/2026-10-31-fullstack-integration.md), followed by incremental execution. Work used an isolated file-only scratch copy, with only intended files copied back for final checks; no Git worktree/branch/staging/commit operation was performed. The prototype remains unchanged.
 
 ## Architecture and decisions
 
@@ -177,26 +177,4 @@ client/src/preview/workspace.ts
 
 The intended-file audit found no private key, credential-bearing MongoDB URI, GitHub/AWS token or literal JWT patterns in changed text files. Synthetic credentials in tests are test inputs, not real accounts. No actual environment file, node_modules, dist, coverage, cache or verification launcher is included. Existing ignore rules cover real environment files and generated output. The compiled client was checked for the removed preview notice/credentials and server/integration secret names; none were found. The 13 screenshots total about 0.58 MB.
 
-Only the user executes staging, commits and pushes. The following commands are provided for manual execution and were **not** executed by the agent:
-
-```sh
-cd '/Users/mavery/Documents/Codex-workspace/AppRo8 Internship 1/week2/task-manager-fullstack'
-git status --short --branch
-git diff --check
-git diff --stat
-git diff -- README.md client/ server/ docs/authentication-decision.md
-git ls-files --others --exclude-standard
-# Also review every untracked source/test/doc file and the screenshots listed above.
-git add -- README.md client/ docs/authentication-decision.md docs/phase-4.2-fullstack-integration.md docs/screenshots/phase-4.2/ docs/superpowers/plans/2026-10-31-fullstack-integration.md docs/superpowers/specs/2026-10-31-fullstack-integration-design.md server/README.md server/src/tasks/routes.ts server/tests/summary.test.ts server/tests/integration/mongo.integration.ts
-git diff --cached --check
-git diff --cached --stat
-git diff --cached --name-only
-git diff --cached
-# Confirm only the 42 intended paths, including the deleted preview module.
-# No private .env, dependencies, build output, caches or real credentials should be staged.
-git commit -m "feat(integration): connect TaskFlow client to backend"
-git status --short --branch
-git push origin main
-```
-
-The agent performed no staging, commits, pushes, destructive Git operations or history rewriting. Both milestone predecessors already have commits: Phase 3.5 `e356ab2`, Phase 4.1 `30c5e48`.
+The owner recorded this milestone in [commit `19dd11f`](https://github.com/Oseni-Tomiwa/task-manager-fullstack/commit/19dd11f93d79b7a7ae05414c042bbbe32882266c). The added-file inventory above describes that historical commit, including the planning documents linked from the opening section.

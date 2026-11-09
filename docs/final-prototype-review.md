@@ -32,8 +32,6 @@ Recommend HttpOnly-cookie JWTs with the same-origin API proxy, exact origin/cust
 
 No remaining blocking design concern was found in the exercised workflows. User review of the new responsive screenshots is still welcome. Small secondary typography and use of system fonts preserve the approved design; no redesign was attempted. All authentication and data remain simulated and reset on reload/logout. No real credentials, production client/server, MongoDB connection or deployment was added.
 
-## Git handoff and safety
+## Historical Git handoff
 
-Only the initial commit existed at review; Phase 1 had no separate commit. Prepared an exact Phase 1 patch from the preserved Phase 1 documents, checked with `git apply --check --cached` (read-only). Working files were not rolled back or swapped, and the index was not changed. Follow [manual handoff instructions](git-handoff/README.md) to create separate commits yourself.
-
-Source/documentation scan and ignored-artifact checks are recorded in the handoff. The only embedded password is the publicly documented mock demo credential. No staging, commits, pushes or history rewriting were performed.
+At the time of this review, the repository held only its initial commit. The reviewer prepared a Phase 1 snapshot and a Phase 2 file list so the owner could commit each milestone separately. The snapshot was checked against the index without applying it. The review found only the documented mock demo password in the audited files.
