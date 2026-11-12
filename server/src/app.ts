@@ -1,3 +1,4 @@
+import { createProxyObserver } from "./diagnostics/proxy-observer.js";
 import express from "express";
 import helmet from "helmet";
 import { authRouter } from "./auth/routes.js";
@@ -7,6 +8,7 @@ import { errorHandler, notFound } from "./middleware/errors.js";
 
 export function createApp(authConfig?: AuthConfig) {
   const app = express();
+  const observeProxy = createProxyObserver();
   app.disable("x-powered-by");
   app.use(helmet());
   app.use(["/api/auth", "/api/tasks"], (_req, res, next) => {
@@ -14,7 +16,8 @@ export function createApp(authConfig?: AuthConfig) {
     next();
   });
   app.use(express.json({ limit: "16kb" }));
-  app.get("/api/health", (_req, res) => {
+  app.get("/api/health", (req, res) => {
+    observeProxy(req);
     res.set("Cache-Control", "no-store").status(200).json({ status: "ok" });
   });
   if (authConfig) {
